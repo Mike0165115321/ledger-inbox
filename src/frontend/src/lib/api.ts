@@ -102,18 +102,8 @@ export const api = {
       const body = await res.json().catch(() => ({ detail: res.statusText }));
       throw new ApiError(body.detail || "อัปโหลดไม่สำเร็จ", res.status);
     }
-    return res.json();
+    return res.json() as Promise<SlipProcessResponse>;
   },
-
-  processDocument: (id: string) =>
-    request<SlipProcessResponse>(`/api/documents/${id}/process`, {
-      method: "POST",
-    }),
-
-  retryEasySlip: (id: string) =>
-    request<SlipProcessResponse>(`/api/documents/${id}/retry-easyslip`, {
-      method: "POST",
-    }),
 
   // ── Review ──
   getReviewQueue: () =>
@@ -132,7 +122,7 @@ export const api = {
     }),
 
   // ── Health ──
-  getModelHealth: () => request<ModelHealth>("/api/health/model"),
+  getServiceHealth: () => request<ServiceHealth>("/api/health/model"),
 
   // ── Tax & Export ──
   getTaxSummary: (year?: number) =>
@@ -282,13 +272,10 @@ export interface SlipExtraction {
   warnings: string[];
 }
 
-export interface ModelHealth {
-  ollama_running: boolean;
-  primary_model: string;
-  primary_available: boolean;
-  fallback_model: string;
-  fallback_available: boolean;
-  ready: boolean;
+export interface ServiceHealth {
+  easyslip_configured: boolean;
+  service: string;
+  note: string;
 }
 
 export interface TaxSummary {

@@ -34,6 +34,13 @@ export default function InboxPage() {
     setTimeout(() => setMsg(null), 3000);
   };
 
+  const handleDelete = async (docId: string) => {
+    if (!confirm("ลบเอกสารนี้? รายการบัญชีจะไม่ถูกลบ")) return;
+    await api.deleteDocument(docId);
+    showMsg("🗑️ ลบแล้ว");
+    fetchDocs();
+  };
+
   const handleUpload = async (file: File) => {
     try {
       const result: SlipProcessResponse = await api.uploadDocument(file);
@@ -109,7 +116,16 @@ export default function InboxPage() {
                       </p>
                     </div>
                   </div>
-                  <span className="text-xs text-zinc-400 font-mono shrink-0 ml-3">{doc.id.slice(0, 8)}</span>
+                  <span className="text-xs text-zinc-400 font-mono shrink-0 ml-3">
+                  <button
+                    onClick={() => handleDelete(doc.id)}
+                    className="hover:text-red-500 mr-1"
+                    title="ลบ"
+                  >
+                    🗑️
+                  </button>
+                  {doc.id.slice(0, 8)}
+                </span>
                 </div>
                 {doc.error_message && (
                   <p className="text-xs text-red-500 mt-2">{doc.error_message}</p>

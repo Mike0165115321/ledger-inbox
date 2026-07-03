@@ -93,6 +93,11 @@ export const api = {
   // ── Documents ──
   getDocuments: () => request<Document[]>("/api/documents"),
 
+  deleteDocument: (id: string) =>
+    request<{ message: string }>(`/api/documents/${id}`, {
+      method: "DELETE",
+    }),
+
   uploadDocument: async (file: File) => {
     const formData = new FormData();
     formData.append("file", file);

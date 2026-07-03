@@ -11,7 +11,7 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..db.database import get_db
-from ..db.models import Document
+from ..db.models import Document, Transaction
 from ..schemas.document import DocumentResponse
 from ..schemas.slip import SlipProcessResponse
 from ..core.config import UPLOAD_DIR
@@ -102,3 +102,24 @@ async def list_documents(db: Session = Depends(get_db)):
         .order_by(Document.uploaded_at.desc())
         .all()
     )
+
+
+@router.delete("/{doc_id}")
+async def delete_document(doc_id: str, db: Session = Depends(get_db)):
+    """Delete a document and unlink from transactions."""
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="ไม่พบเอกสาร")
+
+    # Unlink transactions
+    db.query(Transaction).filter(Transaction.document_id == doc_id).update(
+        {Transaction.document_id: None}
+    )
+
+    # Delete file
+    if os.path.exists(doc.file_path):
+        os.remove(doc.file_path)
+
+    db.delete(doc)
+    db.commit()
+    return {"message": "ลบเอกสารแล้ว"}

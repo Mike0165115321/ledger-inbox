@@ -17,12 +17,12 @@
 │  Classify | Dedup | Review Queue │
 ├──────────────────────────────────┤
 │       Ledger Layer               │
-│  Transaction | Project | Export   │
+│  Transaction | Project | Export  │
 │  SQLite                          │
 ├──────────────────────────────────┤
 │      Slip Reader Layer           │
 │  Qwen3-VL Local (primary)        │
-│  EasySlip API (fallback)        │
+│  EasySlip API (manual fallback)  │
 └──────────────────────────────────┘
 ```
 
@@ -30,59 +30,203 @@
 
 ---
 
-### 1.1 Slip Reader Layer 🔍
+## 2. Layer Communication Protocol
 
-**เป้าหมาย:** รับ slip image → output structured JSON
+**กฎสำคัญ:** Slip Reader กับ Business Agent **ไม่สื่อสารกันผ่าน HTTP ภายใน V1**
+
+### Data Flow
+
+```
+Next.js
+  │
+  │ POST /documents/upload  (HTTP multipart)
+  ▼
+FastAPI route  (api/documents.py)
+  │
+  ▼
+Business Agent (agents/business_agent.py)
+  │
+  ├── SlipReaderService.read(file_path)
+  │       │
+  │       ▼
+  │   returns Pydantic SlipExtractionResult  ← Python object, ไม่ใช่ HTTP
+  │
+  ├── classify → assign category + project
+  ├── dedup check
+  ├── decide_review_status()
+  │
+  ▼
+TransactionService.save()
+  │
+  ▼
+SQLite
+```
+
+**เหตุผลที่ไม่ใช้ internal HTTP:**
+- ไม่ต้องสร้าง service layer ซ้อน service
+- ไม่ต้อง auth ภายใน
+- debug ง่าย
+- เหมาะกับ local-first
+- อนาคตจะแยก Slip Reader เป็น API ก็ยังทำได้ (เปลี่ยน import เป็น HTTP call โดย Business Agent ไม่ต้องรู้)
+
+---
+
+### 2.1 Slip Reader Layer 🔍
+
+**เป้าหมาย:** รับ slip image → output validated Pydantic model
 
 | Component | Description |
 |:--|:--|
 | **Qwen3-VL:8b (primary)** | Local vision model บน Ollama — 6.1GB, ใช้ 4060 8GB VRAM ได้ |
 | **Qwen3-VL:4b (fallback)** | เล็กกว่า (3.3GB) — ถ้า VRAM ไม่พอ |
-| **EasySlip API (option)** | ใช้ตอนพัฒนา หรือกรณีที่ local อ่านไม่ได้ 99 THB/เดือน 400 slip |
+| **EasySlip API (manual)** | ใช้เมื่อ user กด Retry with EasySlip — **ไม่ auto fallback** |
 
-**Output schema:**
-```json
-{
-  "date": "2026-07-03",
-  "amount": 3000,
-  "direction": "expense",
-  "from": "Mike",
-  "to": "OpenRouter",
-  "category": "AI/API",
-  "confidence": 0.86,
-  "source_file": "slip_001.jpg"
-}
+**Output schema (SlipExtractionResult):**
+```python
+class SlipExtractionResult(BaseModel):
+    amount: float | None
+    currency: str = "THB"
+    transaction_datetime: datetime | None
+    sender_name: str | None
+    receiver_name: str | None
+    bank_or_wallet: str | None
+    reference_no: str | None
+    note: str | None
+    confidence: float  # 0.0 - 1.0
+    warnings: list[str]
 ```
+
+#### Slip Extraction Pipeline (ละเอียด)
+
+```
+Upload
+  │
+  ▼
+Save file to disk
+  │
+  ▼
+Calculate file SHA-256 hash
+  │
+  ▼
+Preprocess image
+  ├── Fix EXIF orientation
+  ├── Resize long edge → 1600–2000 px
+  └── Compress if file too large
+  │
+  ▼
+Send to Qwen3-VL via Ollama
+  │
+  ▼
+Raw model output
+  │
+  ▼
+JSON extractor
+  ├── Strip markdown wrappers
+  ├── Extract JSON block
+  └── Handle malformed JSON
+  │
+  ▼
+Pydantic validation  (SlipExtractionResult)
+  │
+  ▼
+Field normalization
+  ├── Amount → float
+  ├── Date → datetime
+  └── Names → strip whitespace
+  │
+  ▼
+→ Business Agent (classify + dedup + review decision)
+```
+
+**ไม่ทำใน V1:**
+- auto crop รูป
+- QR code crop
+- bank-specific crop (crop พลาด = ตัวเลขหาย = บัญชีพัง)
+
+#### Prompt Template
+
+แยกไฟล์เฉพาะ — `backend/app/services/prompts/slip_extraction.py`
+
+```python
+SLIP_EXTRACTION_PROMPT = """
+Extract payment slip information from the image.
+
+Return ONLY valid JSON:
+{
+  "amount": number | null,
+  "currency": "THB",
+  "transaction_datetime": string | null,
+  "sender_name": string | null,
+  "receiver_name": string | null,
+  "bank_or_wallet": string | null,
+  "reference_no": string | null,
+  "note": string | null,
+  "confidence": number,
+  "warnings": string[]
+}
+
+Rules:
+- Do not invent missing data.
+- Use null for unreadable fields.
+- confidence must be 0 to 1.
+- Return JSON only.
+"""
+```
+
+#### Raw Text → Structured Output
+
+V1 ใช้ raw text output จาก model แล้วมี parser แยกอีกชั้น
+
+```
+Raw model output
+  ↓
+extract JSON block (regex)
+  ↓
+validate against Pydantic schema
+  ↓
+normalize fields
+```
+
+local vision models มักตอบ JSON ไม่สะอาด — มี markdown wrapper, extra text, quotes ไม่ตรง
+
+#### เมื่อไหร่ใช้ EasySlip?
+
+**ไม่ auto fallback** — เพราะสลิปคือข้อมูลการเงิน ห้ามส่งออกนอกเครื่องเงียบ ๆ
+
+EasySlip ใช้เมื่อ:
+- local model ไม่พร้อม
+- confidence ต่ำกว่า 0.6
+- QR / reference_no สำคัญมาก
+- user กดปุ่ม **Retry with EasySlip** เอง
 
 ---
 
-### 1.2 Ledger Layer 📒
+### 2.2 Ledger Layer 📒
 
 **เป้าหมาย:** เก็บ + คำนวณ transaction อย่างถูกต้อง
 
 - SQLite Offline
 - Transaction CRUD
 - Project binding
-- Dedup logic
 - Month/Year aggregation
-- กันรายการซ้ำ
+- กันรายการซ้ำ (3 ระดับ)
 
 ---
 
-### 1.3 Business Agent Layer 🤖
+### 2.3 Business Agent Layer 🤖
 
 **เป้าหมาย:** ประสาน Slip Reader + Ledger — จัดหมวด, กันซ้ำ, ส่ง Review
 
-- รับ structured data จาก Slip Reader
+- รับ SlipExtractionResult จาก SlipReaderService
 - จัดหมวด Income/Expense
 - ผูกโปรเจกต์
-- Confidence scoring
-- Review Queue management
+- Dedup check (3 ระดับ)
+- Confidence scoring + Review decision
 - **ไม่ได้ทำ OCR เอง** — Slip Reader Layer แยกออกมาเป็นโมดูลเฉพาะ
 
 ---
 
-### 1.4 UI Layer 🖥️
+### 2.4 UI Layer 🖥️
 
 **เป้าหมาย:** หน้าจอให้คนใช้
 
@@ -91,7 +235,7 @@
 
 ---
 
-## 2. Data Flow
+## 3. Data Flow
 
 ```
 หลักฐาน         →   รายการบัญชี      →   สรุปธุรกิจ
@@ -120,11 +264,193 @@ Slip Reader         Ledger Layer         UI Layer
 
 ---
 
-## 3. Agent Architecture (V1)
+## 4. Data Model (MVP)
+
+### documents
+
+```sql
+documents
+  id                  UUID PRIMARY KEY
+  file_name           TEXT
+  file_type           TEXT           -- jpg / png / pdf
+  file_path           TEXT
+  file_sha256         TEXT           -- สำหรับ exact file duplicate check
+  file_size           INTEGER
+  uploaded_at         TIMESTAMP
+  processing_status   TEXT           -- uploaded / processing / extracted / waiting_model / failed / completed
+  extracted_text      TEXT           -- raw output จาก model
+  error_message       TEXT
+  created_at          TIMESTAMP
+  updated_at          TIMESTAMP
+```
+
+### transactions
+
+```sql
+transactions
+  id                  UUID PRIMARY KEY
+  document_id         UUID REFERENCES documents(id)
+  project_id          UUID REFERENCES projects(id)     -- NULL = unassigned
+  type                TEXT           -- income / expense / transfer / personal / unknown
+  category            TEXT
+  amount              DECIMAL(12,2)
+  currency            TEXT DEFAULT 'THB'
+  transaction_datetime TIMESTAMP
+  sender_name         TEXT
+  receiver_name       TEXT
+  bank_or_wallet      TEXT
+  reference_no        TEXT
+  note                TEXT
+  confidence          REAL           -- 0.0 - 1.0
+  review_status       TEXT           -- pending / confirmed / edited / rejected
+  duplicate_status    TEXT           -- unique / suspected_duplicate / duplicate
+  created_at          TIMESTAMP
+  updated_at          TIMESTAMP
+```
+
+### projects
+
+```sql
+projects
+  id                  UUID PRIMARY KEY
+  name                TEXT
+  client_name         TEXT
+  status              TEXT           -- active / completed / archived
+  started_at          DATE
+  ended_at            DATE           -- NULL = ongoing
+  created_at          TIMESTAMP
+  updated_at          TIMESTAMP
+```
+
+### categories
+
+```sql
+categories
+  id                  UUID PRIMARY KEY
+  name                TEXT
+  type                TEXT           -- income / expense
+  created_at          TIMESTAMP
+```
+
+### tax_years
+
+```sql
+tax_years
+  year                INTEGER PRIMARY KEY
+  total_income        DECIMAL(12,2)
+  total_expense       DECIMAL(12,2)
+  estimated_profit    DECIMAL(12,2)
+  updated_at          TIMESTAMP
+```
+
+### Status แยกหน้าที่ชัดเจน
+
+| Field | ใช้บอกอะไร |
+|:--|:--|
+| `documents.processing_status` | สถานะการอ่านไฟล์ (uploaded → processing → extracted → failed) |
+| `transactions.review_status` | สถานะการตรวจรายการบัญชี (pending / confirmed / edited / rejected) |
+| `transactions.duplicate_status` | สถานะความซ้ำ (unique / suspected_duplicate / duplicate) |
+
+---
+
+## 5. Dedup Logic (3 ระดับ)
+
+### ระดับ 1: Strong Duplicate
+
+**เงื่อนไข:** `reference_no` เหมือนกัน + `amount` เท่ากัน
+
+```
+duplicate_status = "duplicate"
+review_status    = "pending"    ← ไม่ลบ ให้ user ยืนยัน
+```
+
+### ระดับ 2: Suspected Duplicate
+
+**เงื่อนไข:** amount เท่ากัน + วันเดียวกัน + sender/receiver คล้าย + เวลาใกล้กัน
+(ใช้เมื่อไม่มี reference_no หรืออ่านไม่ชัด)
+
+```
+duplicate_status = "suspected_duplicate"
+review_status    = "pending"
+```
+
+### ระดับ 3: Exact File Duplicate
+
+**เงื่อนไข:** `file_sha256` ซ้ำ — อัปโหลดไฟล์เดิมซ้ำ
+
+```
+duplicate_status = "duplicate"
+review_status    = "pending"
+```
+
+### ห้ามลบอัตโนมัติใน V1 เด็ดขาด
+
+ข้อมูลเงิน — ห้ามให้ AI เล่นบทพระเจ้า ทุกระดับต้องให้ user ยืนยันก่อน
+
+---
+
+## 6. Review Decision Logic
+
+### Confidence Thresholds
+
+| ช่วง | การดำเนินการ |
+|:--|:--|
+| confidence ≥ 0.85 | → auto confirmed (ถ้าไม่มี override) |
+| 0.60 ≤ confidence < 0.85 | → Review Queue |
+| confidence < 0.60 | → type = unknown → Review Queue + แจ้งเตือน |
+
+### Override Rules (ถึง confidence สูงก็ต้องเข้า Review Queue)
+
+- amount = null
+- date = null
+- sender_name = null AND receiver_name = null
+- duplicate_status != unique
+- reference_no null แต่ยอดซ้ำกับรายการอื่น
+- model มี warning สำคัญ
+- has_critical_missing_fields() = True
+
+### Decision Function
+
+```python
+def decide_review_status(result: SlipExtractionResult) -> str:
+    """Return: confirmed | pending"""
+
+    # Critical missing fields
+    if result.has_critical_missing_fields():
+        return "pending"
+
+    # Duplicate detected
+    if result.duplicate_status in ("duplicate", "suspected_duplicate"):
+        return "pending"
+
+    # Confidence-based
+    if result.confidence >= 0.85:
+        return "confirmed"
+
+    return "pending"
+```
+
+```python
+def has_critical_missing_fields(result: SlipExtractionResult) -> bool:
+    missing = []
+    if result.amount is None:
+        missing.append("amount")
+    if result.transaction_datetime is None:
+        missing.append("date")
+    if result.sender_name is None and result.receiver_name is None:
+        missing.append("sender/receiver")
+    if result.warnings:
+        missing.extend(result.warnings)
+    return len(missing) > 0
+```
+
+---
+
+## 7. Agent Architecture (V1)
 
 ### Business Agent (ตัวเดียวใน V1)
 
-ทำหน้าที่ประสานทุก Layer — รับ structured data จาก Slip Reader → classify → บันทึก Ledger → สรุป Dashboard
+ทำหน้าที่ประสานทุก Layer — รับ structured data จาก Slip Reader → classify → dedup → review decision → บันทึก Ledger
 
 เมื่อระบบใหญ่ค่อยแตกเป็น:
 - Slip Reader Agent (Qwen3-VL pipeline)
@@ -142,31 +468,68 @@ Slip Reader         Ledger Layer         UI Layer
 
 ---
 
-## 4. Data Model (MVP)
+## 8. Error Handling
 
-```sql
-projects        — id, name, client_name, status, started_at, ended_at
-documents       — id, file_name, file_type, file_path, uploaded_at, extracted_text, extraction_status
-transactions    — id, project_id, document_id, type, category, amount, date, payer, payee, reference_no, confidence, review_status
-categories      — id, name, type
-tax_years       — year, total_income, total_expense, estimated_profit
+### Model Health Check
+
+ก่อนเริ่ม process Slip Reader — Business Agent ตรวจก่อนว่า Ollama / model พร้อมหรือไม่
+
+```python
+def is_model_ready() -> bool:
+    """Check if Ollama is running and model is available"""
+    try:
+        resp = requests.get("http://localhost:11434/api/tags", timeout=2)
+        return "qwen3-vl" in resp.text
+    except:
+        return False
 ```
 
-เริ่มจาก schema แค่นี้ก่อน อย่าใหญ่
+### Flow เมื่อ Model ไม่พร้อม
+
+```
+FastAPI รับไฟล์
+  │
+  ▼
+บันทึก document record
+  │
+  ▼
+เริ่ม process
+  │
+  ▼
+เช็ก Ollama / model health
+  │
+  ├── พร้อม → process ปกติ
+  │
+  └── ไม่พร้อม
+        │
+        ▼
+      document.processing_status = "waiting_model"
+      document.error_message = "Local model unavailable"
+        │
+        ▼
+      UI แจ้ง user
+        │
+        ├── ปุ่ม Retry (ลองอีกครั้ง)
+        └── ปุ่ม Use EasySlip (manual fallback — user ยืนยันแล้ว)
+```
+
+### Key Principle
+
+**ไม่ใช้ EasySlip auto fallback** — ผิดหลัก privacy และ Offline First ต้องให้ user ตัดสินใจเอง
 
 ---
 
-## 5. Stack
+## 9. Stack
 
 ### MVP (Local Web)
 
 | Layer | Tech |
 |:--|:--|
 | UI | Next.js + Tailwind |
-| Business Agent | Python / FastAPI (Business logic + classify) |
-| Ledger | SQLite + Python / SQLAlchemy |
-| Slip Reader | **Qwen3-VL:8b** (Ollama local, primary) → EasySlip API (fallback) |
-| Export | CSV / Excel |
+| Business Agent | Python / FastAPI (orchestration + classify) |
+| Ledger | SQLite + SQLAlchemy |
+| Slip Reader | Qwen3-VL:8b (Ollama local) → EasySlip API (manual fallback) |
+| Export | CSV / Excel (openpyxl) |
 
 ### Desktop App (ช่วงต่อไป)
 
@@ -174,7 +537,7 @@ tax_years       — year, total_income, total_expense, estimated_profit
 
 ---
 
-## 6. Screens (MVP)
+## 10. Screens (MVP)
 
 1. **Inbox** — Upload → Processing → Needs Review → Completed
 2. **Transactions** — ตาราง Date | Type | Amount | Category | Project | Confidence | Status
@@ -184,20 +547,78 @@ tax_years       — year, total_income, total_expense, estimated_profit
 
 ---
 
-## 7. Project Structure
+## 11. Project Structure
 
 ```
 E:\GitHup\ledger-inbox\
 ├── AGENTS.md
 ├── README.md
 ├── docs/
-│   ├── REQUIREMENTS.md        ← สิ่งที่ต้องการ
-│   └── ARCHITECTURE.md        ← วิธีการสร้าง (ไฟล์นี้)
+│   ├── REQUIREMENTS.md
+│   └── ARCHITECTURE.md
 ├── src/
 │   ├── frontend/              ← Next.js (UI Layer)
+│   │   └── app/
+│   │       ├── inbox/
+│   │       ├── transactions/
+│   │       ├── projects/
+│   │       ├── dashboard/
+│   │       └── review/
+│   │
 │   ├── backend/               ← FastAPI (Ledger + Agent)
-│   │   └── slip_reader/       ← Qwen3-VL pipeline
+│   │   └── app/
+│   │       ├── api/
+│   │       │   └── documents.py      ← upload endpoint
+│   │       │   └── transactions.py   ← CRUD + review queue
+│   │       │   └── projects.py
+│   │       │   └── dashboard.py
+│   │       │   └── health.py         ← Slip Reader health check
+│   │       │
+│   │       ├── agents/
+│   │       │   └── business_agent.py ← orchestrator
+│   │       │
+│   │       ├── services/
+│   │       │   ├── slip_reader_service.py  ← Qwen3-VL + Ollama
+│   │       │   ├── dedup_service.py
+│   │       │   └── transaction_service.py
+│   │       │   └── export_service.py
+│   │       │   └── easy_slip_service.py
+│   │       │
+│   │       ├── schemas/
+│   │       │   └── slip.py        ← SlipExtractionResult
+│   │       │   └── transaction.py
+│   │       │   └── document.py
+│   │       │
+│   │       ├── db/
+│   │       │   └── models.py
+│   │       │   └── database.py
+│   │       │
+│   │       ├── prompts/
+│   │       │   └── slip_extraction.py  ← Prompt template
+│   │       │
+│   │       ├── core/
+│   │       │   └── config.py
+│   │       │
+│   │       └── main.py
+│   │
 │   └── shared/                ← types / schemas
+│
 ├── tests/
+│   ├── test_slip_reader.py
+│   ├── test_dedup.py
+│   ├── test_review_decision.py
+│   └── test_transactions.py
+│
 └── assets/
 ```
+
+---
+
+## 12. Principles
+
+- **Slip Reader = service call, ไม่ใช่ internal HTTP**
+- **Raw output → parser → validate — 3 ขั้นตอนแยกกัน**
+- **Dedup 3 ระดับ — ห้ามลบอัตโนมัติ**
+- **Review decision = function ที่มี override rules**
+- **EasySlip = manual fallback เท่านั้น — ไม่ auto**
+- **ไม่มี internal auth — ทุกอย่างวิ่งในเครื่อง**

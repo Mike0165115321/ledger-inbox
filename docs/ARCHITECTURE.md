@@ -522,11 +522,11 @@ FastAPI รับไฟล์
 
 ## 10. Screens (MVP)
 
-1. **Inbox** — Upload → Processing → Needs Review → Completed
+1. **Inbox (Review Queue ในตัว)** — Upload → Processing → Needs Review (รอ Confirm/Edit) → Completed
 2. **Transactions** — ตาราง Date | Type | Amount | Category | Project | Confidence | Status
 3. **Projects** — รายรับ/รายจ่ายแยกตามโปรเจกต์ + Profit + Missing Docs
-4. **Dashboard** — Total Income / Expense / Estimated Profit / Tax Year Summary
-5. **Review Queue** — รายการที่ AI ไม่มั่นใจ + [Confirm] [Edit]
+4. **Dashboard / Timeline** — Total Income / Expense / สรุป Timeline แยกรายวัน/สัปดาห์/เดือน/ปี
+5. **Tax** — ระบบคำนวณภาษีเงินได้เบื้องต้น (หักค่าใช้จ่าย/ค่าลดหย่อน)
 
 ---
 
@@ -542,11 +542,11 @@ E:\GitHup\ledger-inbox\
 ├── src/
 │   ├── frontend/              ← Next.js (UI Layer)
 │   │   └── app/
-│   │       ├── inbox/
+│   │       ├── inbox/         ← รวม Review Queue ไว้ที่นี่
 │   │       ├── transactions/
 │   │       ├── projects/
 │   │       ├── dashboard/
-│   │       └── review/
+│   │       └── tax/           ← คำนวณภาษี
 │   │
 │   ├── backend/               ← FastAPI (Ledger + Agent)
 │   │   └── app/
@@ -564,6 +564,7 @@ E:\GitHup\ledger-inbox\
 │   │       │   ├── gemini_service.py       ← Gemini Vision API
 │   │       │   ├── classification_service.py
 │   │       │   ├── dedup_service.py
+│   │       │   ├── tax_service.py          ← Tax calculation logic
 │   │       │   └── export_service.py
 │   │       │
 │   │       ├── schemas/
@@ -581,7 +582,8 @@ E:\GitHup\ledger-inbox\
 │   │       ├── core/
 │   │       │   └── config.py
 │   │       │
-│   │       └── main.py
+│   │       ├── main.py
+│   │       └── mcp_tools.py          ← MCP Server implementation
 │   │
 │   └── shared/                ← types / schemas
 │
@@ -604,3 +606,70 @@ E:\GitHup\ledger-inbox\
 - **Review decision = function ที่มี override rules**
 - **ไม่มี EasySlip — ไม่มี local model — Gemini เดียว**
 - **ไม่มี internal auth — ทุกอย่างวิ่งในเครื่อง**
+
+---
+
+## 13. Core Sub-Systems & Data Flow (Accounting Perspective)
+
+ภาพรวม Data Flow หลักของระบบ:
+
+```text
+[Inbox] → [Categorize/Classify] → [Ledger (Double-Entry)] → [Reports/Dashboard]
+                                          ↓
+                                   [Tax Engine] → [ภ.พ.30 / ภ.ง.ด. ฯลฯ]
+                                          ↓
+                                   [MCP Server] ← AI เรียกใช้งานได้
+```
+
+### 1. Layer: Inbox (จุดรับข้อมูลดิบ)
+- **หน้าที่:** รับธุรกรรมที่ยังไม่ผ่านการตัดสินใจ เช่น statement ธนาคาร, สลิปโอน, ใบเสร็จ (อาจมาจาก OCR)
+- **สิ่งที่ต้องมี:**
+  - สถานะของแต่ละ record: `pending` → `categorized` → `posted`
+  - Rule engine พื้นฐาน (เช่น "ถ้า merchant = 7-Eleven → หมวดค่าใช้จ่ายทั่วไป") เพื่อลดงาน manual
+  - เก็บ raw data ต้นฉบับไว้เสมอ ห้ามแก้ทับ — นี่คือหลักการ audit trail (ร่องรอยตรวจสอบย้อนหลัง) ที่นักบัญชีจริงยึดถือ
+
+### 2. Layer: Ledger (บัญชีแยกประเภท)
+- **บัญชีคู่ (Double-entry):** ทุกรายการ debit ต้องเท่ากับ credit เสมอ ถ้า schema ไม่บังคับกฎนี้ตั้งแต่ระดับฐานข้อมูล ระบบจะพังตอนข้อมูลเยอะขึ้นแน่นอน
+- **ผังบัญชี (Chart of Accounts):** ควรมีอย่างน้อย 5 หมวดหลัก: สินทรัพย์, หนี้สิน, ทุน, รายได้, ค่าใช้จ่าย — และรองรับ sub-account ซ้อนกันได้ (เช่น ค่าใช้จ่าย > ค่าใช้จ่ายดำเนินงาน > ค่าน้ำมัน)
+- **Immutability:** record ที่ post แล้วห้ามแก้ ถ้าผิดต้องทำ reversing entry (รายการกลับรายการ) — นี่คือจุดที่คนทำระบบบัญชีมือใหม่มักพลาด คือไป UPDATE ทับ row เดิม ทำให้ประวัติเสีย
+
+### 3. Layer: Tax Engine (ภาษี/สรรพากร)
+จุดที่ซับซ้อนสุดเพราะกฎภาษีไทยมีรายละเอียดเยอะ:
+- **ภ.พ.30 (VAT):** ถ้ารายได้เกิน 1.8 ล้าน/ปี ยื่นรายเดือน
+- **ภ.ง.ด.1/3/53:** หัก ณ ที่จ่าย รายเดือน
+- **ภ.ง.ด.90/94:** ภาษีเงินได้บุคคลธรรมดารายปี
+- **e-Tax Invoice:** ถ้าต้องออกใบกำกับภาษีอิเล็กทรอนิกส์ตามธุรกรรม
+- **คำแนะนำเชิงกลยุทธ์:** อย่าพยายาม hardcode สูตรภาษีลงในโค้ดหลัก เพราะกฎเปลี่ยนทุกปี — ให้แยกเป็น "tax rule module" ที่ config ได้จากภายนอก (เช่น JSON/YAML) เพื่อไม่ให้กระทบ core logic
+
+### 4. Layer: MCP Server (AI Interface)
+ส่วนที่ทำให้โปรเจกต์นี้ต่างจาก accounting software ทั่วไป — เปิดให้ AI เข้าถึงข้อมูลการเงินได้โดยตรง
+- **แยก Tool Read/Write ให้ชัดเจน:** แบบ read-only (`query_ledger`, `get_balance`, `generate_report`) กับ write (`post_transaction`, `categorize_entry`) — เพราะถ้า AI เขียนผิด ข้อมูลบัญชีจะพัง
+- **Human-in-the-loop (Write Operations):** ให้ AI เสนอ transaction ที่จะ post แต่ต้องมี confirmation step ก่อน commit จริง (คล้าย draft mode) ป้องกัน AI จัดหมวดผิด
+- **Security / Local Auth:** ถึงจะเป็นระบบ offline (ไม่มี data leak ออกเน็ต) แต่ต้องคำนึงถึง local auth หากมีหลาย process พยายามเข้าถึง DB พร้อมกัน
+
+---
+
+## 14. UI Menu Strategy (Accounting-driven)
+
+การแปลงหลักการบัญชีให้เป็นโครงสร้างเมนูสำหรับ Freelance โดยยังคงความใช้งานง่าย แนะนำให้จัดกลุ่มออกเป็น 3 หมวดหมู่หลัก ดังนี้:
+
+### 📦 หมวดที่ 1: Daily Operations (งานประจำวัน)
+*User เข้ามาใช้บ่อยที่สุด เพื่อบันทึกและตรวจเช็กข้อมูล*
+1. **📥 Inbox (จุดรับข้อมูลดิบ):** เป็น Review Queue ให้ AI ช่วยเดาหมวดหมู่ โยนเอกสารเข้ามารอให้ User กดยืนยัน (Approve) เพื่อ Post ลง Ledger
+2. **📒 General Ledger / Transactions (สมุดบัญชี):** ดูรายการทั้งหมดที่ Post แล้ว (Immutable) หากพบว่าลงผิดห้ามลบ/แก้ทับ ให้กดปุ่ม "Reverse" (กลับรายการ)
+3. **🗂️ Projects (แยกต้นทุน/กำไรตามงาน):** Dashboard ย่อยเฉพาะโปรเจกต์ ตอบโจทย์ Freelance ว่างานไหนกำไร/ขาดทุนเท่าไหร่
+
+### ⚙️ หมวดที่ 2: Core Accounting (หัวใจระบบบัญชี)
+*เครื่องมือสำหรับตั้งค่าและตรวจสอบความถูกต้อง (แนะนำให้ซ่อนใน Settings หรือ Advanced Mode)*
+4. **📑 Chart of Accounts (ผังบัญชี):** จัดการ 5 หมวดหลัก (สินทรัพย์, หนี้สิน, ทุน, รายได้, ค่าใช้จ่าย) 
+5. **⚖️ Reconciliation (กระทบยอดธนาคาร):** เทียบ Bank Statement กับ Ledger ว่ายอดตรงกันไหม มีตกหล่นหรือซ้ำซ้อนหรือไม่
+6. **🔒 Period Closing (ปิดงวดบัญชี):** ปิดงวดระดับเดือน/ปี เพื่อ Lock ข้อมูลทั้งหมด ห้าม AI หรือใครมา Post Transaction ย้อนหลัง
+
+### 📊 หมวดที่ 3: Analytics & Compliance (สรุปผลและภาษี)
+*สำหรับดูภาพรวมและทำข้อมูลส่งสรรพากร*
+7. **📈 Executive Dashboard:** ภาพรวมแบบเร็วๆ (Timeline, สรุปรายรับ-รายจ่าย, สุขภาพทางการเงิน)
+8. **📜 Financial Reports (งบการเงิน):** งบมาตรฐานที่ generate จาก Ledger โดยตรง เช่น งบกำไรขาดทุน (P&L), งบกระแสเงินสด (Cash Flow)
+9. **🏛️ Tax & Compliance (ภาษี):** คำนวณภาษีบุคคลธรรมดา, สรุปยอด VAT (ภ.พ.30), หัก ณ ที่จ่าย (WHT)
+
+> **UX Note:** ระบบ Double-Entry Bookkeeping จะทำงานอยู่หลังบ้านแบบแนบเนียน ผ่านการ Approve จาก Inbox เป็นหลัก (เช่น `Debit: เงินสด / Credit: รายได้`) เพื่อให้ User ไม่รู้สึกว่าต้องมานั่งเรียนรู้คำศัพท์บัญชีที่ซับซ้อน ตรงตามคอนเซปต์ "บัญชีสำหรับฟรีแลนซ์ที่ขี้เกียจทำบัญชี"
+

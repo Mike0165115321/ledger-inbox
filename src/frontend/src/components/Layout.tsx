@@ -15,14 +15,37 @@ import {
   Sun,
   Moon,
   Menu,
+  Settings,
 } from "lucide-react";
 
-const NAV_ITEMS = [
-  { href: "/", label: "แดชบอร์ด", icon: LayoutDashboard },
-  { href: "/inbox", label: "อัปโหลดสลิป", icon: Inbox },
-  { href: "/transactions", label: "รายการ", icon: ArrowLeftRight },
-  { href: "/projects", label: "โปรเจกต์", icon: FolderKanban },
-  { href: "/tax", label: "ภาษี", icon: Landmark },
+type NavGroup = {
+  label: string;
+  items: { href: string; label: string; icon: any }[];
+};
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "งานประจำวัน",
+    items: [
+      { href: "/inbox", label: "Inbox", icon: Inbox },
+      { href: "/transactions", label: "สมุดบัญชี", icon: ArrowLeftRight },
+      { href: "/projects", label: "โปรเจกต์", icon: FolderKanban },
+    ],
+  },
+  {
+    label: "สรุปผลและภาษี",
+    items: [
+      { href: "/", label: "แดชบอร์ด", icon: LayoutDashboard },
+      { href: "/tax", label: "ภาษี", icon: Landmark },
+    ],
+  },
+  {
+    label: "ระบบบัญชี (Core)",
+    items: [
+      // { href: "/settings/coa", label: "ผังบัญชี", icon: Settings }, // Future
+      { href: "/settings", label: "ตั้งค่า", icon: Settings },
+    ],
+  },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -92,32 +115,41 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex flex-col gap-1 px-2 py-3 flex-1">
-          {NAV_ITEMS.map((item) => {
-            const isActive =
-              item.href === "/"
-                ? pathname === "/"
-                : pathname.startsWith(item.href);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                title={collapsed ? item.label : undefined}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 relative ${
-                  isActive
-                    ? "bg-surface-hover text-text"
-                    : "text-text-muted hover:bg-surface-hover hover:text-text"
-                } ${collapsed ? "justify-center px-2" : ""}`}
-              >
-                {isActive && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full bg-accent" />
-                )}
-                <Icon className="w-5 h-5 shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
-              </Link>
-            );
-          })}
+        <nav className="flex flex-col gap-4 px-2 py-4 flex-1 overflow-y-auto">
+          {NAV_GROUPS.map((group, idx) => (
+            <div key={idx} className="flex flex-col gap-1">
+              {!collapsed && (
+                <div className="px-3 py-1 text-xs font-bold text-text-subtle uppercase tracking-wider">
+                  {group.label}
+                </div>
+              )}
+              {group.items.map((item) => {
+                const isActive =
+                  item.href === "/"
+                    ? pathname === "/"
+                    : pathname.startsWith(item.href);
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    title={collapsed ? item.label : undefined}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 relative ${
+                      isActive
+                        ? "bg-surface-hover text-text"
+                        : "text-text-muted hover:bg-surface-hover hover:text-text"
+                    } ${collapsed ? "justify-center px-2" : ""}`}
+                  >
+                    {isActive && (
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full bg-accent" />
+                    )}
+                    <Icon className="w-5 h-5 shrink-0" />
+                    {!collapsed && <span>{item.label}</span>}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         {/* Footer */}

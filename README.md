@@ -13,7 +13,7 @@
 | ✅ อัปโหลดสลิป — AI อ่านอัตโนมัติ (Gemini Flash) | Done |
 | ✅ จัดหมวดอัตโนมัติ + ผูกโปรเจกต์ | Done |
 | ✅ กันรายการซ้ำ 3 ระดับ | Done |
-| ✅ Review Queue — ยืนยัน/แก้ไข/ปฏิเสธ | Done |
+| ✅ Inbox & Review Queue — คิวตรวจสอบรายการในที่เดียว | Done |
 | ✅ Dashboard พร้อมกราฟ interactive (Recharts) | Done |
 | ✅ Timeline รายรับ-รายจ่าย (วัน/สัปดาห์/เดือน/ปี) | Done |
 | ✅ คำนวณภาษีเงินได้บุคคลธรรมดา (ขั้นบันไดภาษีไทย) | Done |
@@ -96,7 +96,7 @@ src/
 │
 └── frontend/             # Next.js 16 (port 3000)
     └── src/
-        ├── app/          # 5 pages: Dashboard, Inbox, Transactions, Projects, Tax
+        ├── app/          # 6 pages: Dashboard, Inbox, Transactions, Projects, Tax, Settings
         ├── components/   # Layout, Forms, FileUpload, StatCard, QueueStatusBar
         │   └── ui/       # Design System: Button, Card, Badge, Skeleton, Input, Modal
         └── lib/          # API client + TypeScript types
@@ -104,21 +104,25 @@ src/
 
 ---
 
-## 🗺️ Architecture
+## 🗺️ Architecture & Data Flow
 
-```
-Upload Slip → Gemini Vision API → Business Agent (classify + dedup) → Ledger (SQLite)
-                                                    ↓
-                                          Review Queue (ถ้า AI ไม่มั่นใจ)
-                                                    ↓
-                                          User ยืนยัน/แก้ไข
+```text
+[Inbox] → [Categorize/Classify] → [Ledger (Double-Entry)] → [Reports/Dashboard]
+                                          ↓
+                                   [Tax Engine]
+                                          ↓
+                                   [MCP Server]
 ```
 
-```
-Dashboard ← Timeline API ← Aggregated transactions (day/week/month/year)
-Tax Page  ← Tax Calculation API ← Progressive brackets + deductions
-MCP       ← fastapi-mcp ← All REST endpoints auto-exposed as tools
-```
+**หลักการบัญชี (Accounting Core) ที่ซ่อนอยู่:**
+- **Double-Entry Bookkeeping:** ธุรกรรมทำงานบนหลักการบัญชีคู่เบื้องหลัง (Debit/Credit) แบบอัตโนมัติ เพื่อรักษาความถูกต้องของงบ
+- **Immutability:** บันทึกแล้วห้ามแก้ทับ (No overwrite) หากต้องการแก้ให้ใช้การ Reverse (กลับรายการ) เพื่อรักษา Audit Trail
+- **Human-in-the-loop:** AI ทำหน้าที่แนะนำ (Draft) ใน Inbox User ต้องเป็นคนกดยืนยัน (Approve) ก่อนลง Ledger จริง
+
+**Technical Flow:**
+- **Slip Pipeline:** Upload Slip → Gemini Vision API → Business Agent (classify + dedup) → Ledger (SQLite)
+- **UI & Reports:** Dashboard ← Timeline API ← Aggregated transactions
+- **MCP Server:** All REST endpoints auto-exposed as tools
 
 ---
 
@@ -147,10 +151,13 @@ Components ทั้งหมดใช้ semantic tokens — ไม่มี ha
 
 ---
 
-## ⚠️ Non-goals (V1)
+## ⚠️ Principles & Non-goals (V1)
 
-- Offline First 100% — ข้อมูลทั้งหมดอยู่ในเครื่อง
-- No SaaS — Desktop-first
+**Core Principles:**
+- **Offline First 100%** — ข้อมูลทั้งหมดอยู่ในเครื่อง ไม่พึ่งพา Cloud Storage
+- **No SaaS** — Desktop-first (สามารถห่อเป็น Electron/Tauri ได้ในอนาคต)
+- **Module Design** — โปรเจกต์นี้ตั้งใจให้เป็น Module ส่วนหนึ่งของ AI Personal Assistant ในอนาคต
+
+**Non-goals (สิ่งที่ไม่ทำใน V1):**
 - ไม่มีระบบ Login / Multi-user
-- ไม่เชื่อมต่อ Banking API
-- โปรเจกต์นี้เป็น Module ของ AI Personal Assistant ในอนาคต
+- ไม่เชื่อมต่อ Banking API อัตโนมัติ (รับเฉพาะ Statement/Slip)

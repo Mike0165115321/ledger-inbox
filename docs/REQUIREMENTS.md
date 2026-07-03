@@ -36,11 +36,7 @@
 - ❌ Login / User / Multi-user
 - ❌ Cloud / Subscription
 - ❌ API ธนาคาร / Wallet
-- ❌ Tax filing (มีแค่ Tax Summary)
-- ❌ Multi-agent (มีแค่ Business Agent ตัวเดียว)
-- ❌ Dashboard หรูเกินจำเป็น
 - ❌ Predictive finance
-- ❌ OCR เองทั้งหมด (ใช้ Gemini Vision API)
 
 ### Form Factor
 
@@ -77,14 +73,13 @@
 
 ---
 
-## 5. Roadmap
+## 5. Current Features (Implemented)
 
-| Week | Focus | Goal |
-|:--|:--|:--|
-| Week 1 | Core Ledger | สร้าง project, เพิ่ม transaction, อัปโหลดสลิป, Dashboard พื้นฐาน — **ยังไม่มี AI ก็ใช้จดบัญชีได้** |
-| Week 2 | AI Extraction | Slip Reader: Gemini gemini-3.1-flash-lite ทดสอบ + เริ่ม pipeline |
-| Week 3 | Classification + Review | จัดหมวด, ผูกโปรเจกต์, กันรายการซ้ำ, Review Queue |
-| Week 4 | Reports | รายงานเดือน/ปี, กำไรต่อโปรเจกต์, Export CSV/Excel, Tax Summary |
+- **Core Ledger:** จัดการ Project, สร้าง Transaction, หน้า Dashboard และสรุป Timeline
+- **AI Extraction:** สแกนสลิปโอนเงินด้วย Gemini Vision API และดึงข้อมูลอัตโนมัติ (Slip Reader)
+- **Classification & Review:** จัดหมวดหมู่, ผูก Project, ตรวจสอบรายการซ้ำ และรวมคิวตรวจสอบ (Review Queue) ไว้ใน Inbox
+- **Tax & Reports:** คำนวณภาษีเงินได้เบื้องต้น (Tax Calculation)
+- **MCP Server:** รองรับการเชื่อมต่อกับ AI Agents ภายนอก (เช่น Claude, ZCode) เพื่ออ่าน/เขียนข้อมูลบัญชีได้โดยตรง
 
 ---
 
@@ -101,3 +96,25 @@
 - **Offline First 100%** — ข้อมูลส่วนตัวทั้งหมด ไม่ต้องอัปโหลด cloud
 - **No SaaS** — เป็น Desktop App ที่ทำงานในเครื่อง
 - โปรเจกต์นี้ควรเป็น **Module** ของ AI Personal Assistant ในอนาคต (ไม่ใช่โปรแกรมแยก)
+
+---
+
+## 8. Accounting Core (สิ่งที่ต้อง Mirror จากหลักการบัญชี)
+
+หน้าที่หลักของ "นักบัญชี" ที่ซอฟต์แวร์ต้อง mirror มีดังนี้:
+
+1. **รับข้อมูลดิบเข้าระบบ (Capture / Inbox)**
+   ส่วนที่ตรงกับชื่อ repo — "Inbox" คือจุดที่ธุรกรรมดิบ (raw transactions) เข้ามาก่อนถูกจัดหมวดหมู่ เช่น statement ธนาคาร, ใบเสร็จ, invoice ที่ scan มา ยังไม่ผ่านการตัดสินใจว่าจะลงบัญชีอย่างไร
+2. **ผังบัญชี (Chart of Accounts)**
+   โครงสร้างหมวดบัญชีทั้งหมด (สินทรัพย์ หนี้สิน ทุน รายได้ ค่าใช้จ่าย) — เป็นกระดูกสันหลังที่ทุกธุรกรรมต้อง map เข้าไป
+3. **บัญชีคู่ (Double-Entry Bookkeeping)**
+   หัวใจของระบบบัญชีจริง — ทุกรายการต้อง debit = credit เสมอ ถ้า engine ไม่บังคับกฎนี้ มันจะไม่ใช่ "ระบบบัญชี" แต่เป็นแค่ tracker ธรรมดา
+4. **สมุดรายวัน → บัญชีแยกประเภท (Journal Entries → General Ledger)**
+   รายการที่ผ่านการจัดหมวดจาก inbox แล้ว จะถูก post เข้า ledger จริง พร้อม timestamp, reference, และต้อง immutable (แก้ไขย้อนหลังไม่ได้ ต้องทำ reversing entry แทน) เพื่อรักษา audit trail (ร่องรอยการตรวจสอบ)
+5. **การกระทบยอด (Reconciliation)**
+   เทียบข้อมูลใน ledger กับ statement จริงจากธนาคาร เพื่อจับความคลาดเคลื่อน — เป็นจุดที่ระบบ "นักบัญชี" อัตโนมัติส่วนใหญ่มักไปสะดุด เพราะการ matching อัตโนมัติ (rule-based หรือ ML) ทำได้ไม่ 100%
+6. **ปิดงวดบัญชี (Period Closing)**
+   ล็อกงวดที่ปิดแล้วไม่ให้แก้ไข และ carry balance ไปงวดถัดไป
+7. **รายงานทางการเงิน (Financial Statements)**
+   งบกำไรขาดทุน (P&L), งบดุล (Balance Sheet), งบกระแสเงินสด (Cash Flow) — ต้อง generate ได้จาก ledger โดยตรง ไม่ใช่คำนวณแยกต่างหาก
+

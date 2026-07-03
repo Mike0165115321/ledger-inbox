@@ -1,92 +1,126 @@
 """
-EasySlip API client — manual fallback only (not auto!).
+EasySlip API client — primary slip OCR service.
+Uses EasySlip v2 API for Thai bank slip extraction.
 
-User must explicitly trigger this by pressing "Retry with EasySlip".
-EasySlip is a Thai slip OCR API service.
+API Docs: https://document.easyslip.com/en/
 """
 
 import os
-import base64
-import requests
-from typing import Optional
 from datetime import datetime
+from typing import Optional
+
+import requests
 
 from ..schemas.slip import SlipExtractionResult
 
-EASYSLIP_API_URL = os.getenv("EASYSLIP_API_URL", "https://api.easyslip.com/api/v1/verify")
+EASYSLIP_API_URL = os.getenv(
+    "EASYSLIP_API_URL",
+    "https://api.easyslip.com/v2/verify/bank",
+)
 EASYSLIP_API_KEY = os.getenv("EASYSLIP_API_KEY", "")
 
 
 class EasySlipService:
-    """Manual fallback for slip extraction using EasySlip API."""
+    """Primary slip extraction using EasySlip v2 API."""
 
     def is_configured(self) -> bool:
-        """Check if EasySlip API key is set."""
+        """Check if API key is set."""
         return bool(EASYSLIP_API_KEY)
 
     def read(self, file_path: str) -> SlipExtractionResult:
         """
-        Send slip to EasySlip API for extraction.
+        Send slip image to EasySlip v2 for OCR extraction.
 
-        Returns SlipExtractionResult.
-        Raises RuntimeError if API key is not configured.
+        Args:
+            file_path: Path to slip image file (jpg/png)
+
+        Returns:
+            SlipExtractionResult with extracted fields
         """
         if not self.is_configured():
             raise RuntimeError(
-                "EasySlip API key not configured. Set EASYSLIP_API_KEY environment variable."
+                "EasySlip API key not configured. Set EASYSLIP_API_KEY in .env"
             )
 
-        # Read image and encode as base64
+        headers = {"Authorization": f"Bearer {EASYSLIP_API_KEY}"}
+
         with open(file_path, "rb") as f:
-            image_b64 = base64.b64encode(f.read()).decode("utf-8")
+            files = {"image": (os.path.basename(file_path), f, "image/png")}
+            resp = requests.post(
+                EASYSLIP_API_URL,
+                headers=headers,
+                files=files,
+                data={"checkDuplicate": "false"},
+                timeout=30,
+            )
 
-        headers = {
-            "Authorization": f"Bearer {EASYSLIP_API_KEY}",
-            "Content-Type": "application/json",
-        }
-
-        payload = {"image": image_b64}
-
-        resp = requests.post(EASYSLIP_API_URL, json=payload, headers=headers, timeout=30)
         resp.raise_for_status()
         data = resp.json()
 
-        return self._parse_easyslip_response(data)
+        # Log response for debugging
+        print(f"[EasySlip] v2 response: success={data.get('success')}")
 
-    def _parse_easyslip_response(self, data: dict) -> SlipExtractionResult:
-        """Map EasySlip API response to SlipExtractionResult."""
-        result_data = data.get("data", data)
+        if not data.get("success"):
+            error_msg = data.get("error", {}).get("message", str(data))
+            raise RuntimeError(f"EasySlip API error: {error_msg}")
 
-        # Map common EasySlip fields
-        amount = result_data.get("amount")
+        return self._parse_v2_response(data)
+
+    def _parse_v2_response(self, data: dict) -> SlipExtractionResult:
+        """Parse EasySlip v2 response into SlipExtractionResult."""
+        raw = data.get("data", {}).get("rawSlip", {})
+        if not raw:
+            return SlipExtractionResult(
+                confidence=0.0,
+                warnings=["empty_response"],
+            )
+
+        # Amount
+        amount_data = raw.get("amount", {})
+        amount = amount_data.get("amount") or (
+            amount_data.get("local", {}).get("amount")
+        )
         if amount is not None:
             try:
-                amount = float(str(amount).replace(",", ""))
+                amount = float(amount)
             except (ValueError, TypeError):
                 amount = None
 
-        # Parse datetime
-        dt_str = result_data.get("date", result_data.get("transDate"))
+        # Date
+        dt_str = raw.get("date")
         transaction_datetime = None
         if dt_str:
             try:
-                # EasySlip often returns "DD/MM/YYYY HH:MM" or "YYYY-MM-DD"
-                for fmt in ("%d/%m/%Y %H:%M", "%d/%m/%Y", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
-                    try:
-                        transaction_datetime = datetime.strptime(dt_str, fmt)
-                        break
-                    except ValueError:
-                        continue
-            except Exception:
+                transaction_datetime = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+            except (ValueError, Exception):
                 pass
 
-        sender = result_data.get("sender", result_data.get("senderName"))
-        receiver = result_data.get("receiver", result_data.get("receiverName"))
-        bank = result_data.get("bank", result_data.get("bankName"))
-        ref = result_data.get("ref", result_data.get("reference", result_data.get("refNo")))
-        note = result_data.get("note", result_data.get("memo"))
+        # Sender
+        sender_data = raw.get("sender", {})
+        sender_account = sender_data.get("account", {}).get("name", {})
+        sender_name = (
+            sender_account.get("th")
+            or sender_account.get("en")
+        )
+        sender_bank = sender_data.get("bank", {}).get("short")
 
-        confidence = 0.95  # EasySlip is usually quite accurate
+        # Receiver
+        receiver_data = raw.get("receiver", {})
+        receiver_account = receiver_data.get("account", {}).get("name", {})
+        receiver_name = (
+            receiver_account.get("th")
+            or receiver_account.get("en")
+        )
+        receiver_bank = receiver_data.get("bank", {}).get("short")
+
+        # Bank: use sender bank if sender is the one transferring TO us
+        bank = receiver_bank or sender_bank
+
+        # Reference
+        ref = raw.get("transRef")
+
+        # Confidence: EasySlip v2 is usually very accurate
+        confidence = 0.92
         warnings = []
 
         if amount is None:
@@ -97,11 +131,11 @@ class EasySlipService:
             amount=amount,
             currency="THB",
             transaction_datetime=transaction_datetime,
-            sender_name=sender,
-            receiver_name=receiver,
+            sender_name=sender_name,
+            receiver_name=receiver_name,
             bank_or_wallet=bank,
             reference_no=ref,
-            note=note,
+            note=None,
             confidence=confidence,
             warnings=warnings,
         )

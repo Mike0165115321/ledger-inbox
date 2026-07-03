@@ -107,7 +107,19 @@ export const api = {
       const body = await res.json().catch(() => ({ detail: res.statusText }));
       throw new ApiError(body.detail || "อัปโหลดไม่สำเร็จ", res.status);
     }
-    return res.json() as Promise<SlipProcessResponse>;
+    return res.json() as Promise<QueuedUploadResponse>;
+  },
+
+  uploadDocumentsBatch: async (files: File[]) => {
+    const formData = new FormData();
+    files.forEach((f) => formData.append("files", f));
+    const url = `${API_BASE}/api/documents/upload/batch`;
+    const res = await fetch(url, { method: "POST", body: formData });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new ApiError(body.detail || "อัปโหลดไม่สำเร็จ", res.status);
+    }
+    return res.json() as Promise<{ queued: number; items: QueuedUploadResponse[] }>;
   },
 
   // ── Review ──
@@ -128,6 +140,7 @@ export const api = {
 
   // ── Health ──
   getServiceHealth: () => request<ServiceHealth>("/api/health/model"),
+  getQueueStatus: () => request<QueueStatus>("/api/health/queue"),
 
   // ── Tax & Export ──
   getTaxSummary: (year?: number) =>
@@ -280,7 +293,34 @@ export interface SlipExtraction {
 export interface ServiceHealth {
   gemini_configured: boolean;
   service: string;
-  note: string;
+  model: string;
+  limits: { rpm: number; rpd: number };
+}
+
+export interface QueueStatus {
+  queue_size: number;
+  is_processing: boolean;
+  rate_limited: boolean;
+  rate_limit_reset_at: string | null;
+  // Usage (of real)
+  requests_today: number;
+  rpm_used: number;
+  tpm_used: number;
+  // Limits (from .env)
+  rpm_limit: number;
+  tpm_limit: number;
+  rpd_limit: number;
+  // Misc
+  last_processed_at: string | null;
+  last_error: string | null;
+}
+
+export interface QueuedUploadResponse {
+  document_id?: string;
+  file_name: string;
+  processing_status: string;  // "queued" | "error"
+  queue_position?: number;
+  error?: string;
 }
 
 export interface TaxSummary {

@@ -3,78 +3,95 @@
 import { useCallback, useState } from "react";
 
 interface FileUploadProps {
-  onUpload: (file: File) => Promise<void>;
+  /** รับหลายไฟล์พร้อมกัน */
+  onUpload: (files: File[]) => Promise<void>;
 }
+
+const ALLOWED = ["image/jpeg", "image/png", "application/pdf"];
 
 export default function FileUpload({ onUpload }: FileUploadProps) {
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
 
-  const handleFile = useCallback(
-    async (file: File) => {
-      const allowed = ["image/jpeg", "image/png", "application/pdf"];
-      if (!allowed.includes(file.type)) {
+  const handleFiles = useCallback(
+    async (rawFiles: FileList | File[]) => {
+      const files = Array.from(rawFiles).filter((f) => ALLOWED.includes(f.type));
+      const invalid = Array.from(rawFiles).length - files.length;
+
+      if (files.length === 0) {
         setMessage("❌ รองรับเฉพาะ jpg, png, pdf");
         return;
       }
+
       setUploading(true);
+      setPendingCount(files.length);
       setMessage(null);
+
       try {
-        await onUpload(file);
-        setMessage("✅ อัปโหลดสำเร็จ");
+        await onUpload(files);
+        setMessage(
+          files.length === 1
+            ? `✅ เพิ่ม 1 รูปเข้าคิวแล้ว`
+            : `✅ เพิ่ม ${files.length} รูปเข้าคิวแล้ว${invalid > 0 ? ` (ข้าม ${invalid} ไฟล์ไม่รองรับ)` : ""}`
+        );
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : "อัปโหลดไม่สำเร็จ";
         setMessage(`❌ ${msg}`);
       } finally {
         setUploading(false);
+        setPendingCount(0);
       }
     },
     [onUpload]
   );
 
+  const openPicker = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/jpeg,image/png,application/pdf";
+    input.multiple = true;
+    input.onchange = (e) => {
+      const files = (e.target as HTMLInputElement).files;
+      if (files) handleFiles(files);
+    };
+    input.click();
+  };
+
   return (
     <div className="space-y-3">
       <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragOver(true);
-        }}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => {
           e.preventDefault();
           setDragOver(false);
-          const file = e.dataTransfer.files[0];
-          if (file) handleFile(file);
+          if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
         }}
-        className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer ${
+        onClick={openPicker}
+        className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer select-none ${
           dragOver
-            ? "border-zinc-900 bg-zinc-50"
+            ? "border-blue-400 bg-blue-50"
             : "border-zinc-300 hover:border-zinc-400"
         }`}
-        onClick={() => {
-          const input = document.createElement("input");
-          input.type = "file";
-          input.accept = "image/jpeg,image/png,application/pdf";
-          input.onchange = (e) => {
-            const file = (e.target as HTMLInputElement).files?.[0];
-            if (file) handleFile(file);
-          };
-          input.click();
-        }}
       >
         {uploading ? (
           <div className="text-zinc-500">
             <p className="text-2xl mb-2">⏳</p>
-            <p className="text-sm">กำลังอัปโหลด...</p>
+            <p className="text-sm">
+              กำลังเพิ่ม {pendingCount} รูปเข้าคิว...
+            </p>
           </div>
         ) : (
           <div className="text-zinc-500">
-            <p className="text-2xl mb-2">📤</p>
+            <p className="text-3xl mb-2">📤</p>
             <p className="text-sm font-medium">
-              ลากไฟล์มาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์
+              ลากหลายไฟล์มาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์
             </p>
-            <p className="text-xs text-zinc-400 mt-1">รองรับ jpg, png, pdf</p>
+            <p className="text-xs text-zinc-400 mt-1">
+              รองรับ jpg, png, pdf · เลือกหลายไฟล์พร้อมกันได้
+            </p>
           </div>
         )}
       </div>

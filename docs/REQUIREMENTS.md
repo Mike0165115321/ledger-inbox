@@ -40,7 +40,7 @@
 - ❌ Multi-agent (มีแค่ Business Agent ตัวเดียว)
 - ❌ Dashboard หรูเกินจำเป็น
 - ❌ Predictive finance
-- ❌ OCR เองทั้งหมด (ใช้ Vision API)
+- ❌ OCR เองทั้งหมด (ใช้ Gemini Vision API)
 
 ### Form Factor
 
@@ -82,7 +82,7 @@
 | Week | Focus | Goal |
 |:--|:--|:--|
 | Week 1 | Core Ledger | สร้าง project, เพิ่ม transaction, อัปโหลดสลิป, Dashboard พื้นฐาน — **ยังไม่มี AI ก็ใช้จดบัญชีได้** |
-| Week 2 | AI Extraction | Slip Reader: Qwen3-VL ทดสอบ + เริ่ม pipeline |
+| Week 2 | AI Extraction | Slip Reader: Gemini gemini-3.1-flash-lite ทดสอบ + เริ่ม pipeline |
 | Week 3 | Classification + Review | จัดหมวด, ผูกโปรเจกต์, กันรายการซ้ำ, Review Queue |
 | Week 4 | Reports | รายงานเดือน/ปี, กำไรต่อโปรเจกต์, Export CSV/Excel, Tax Summary |
 

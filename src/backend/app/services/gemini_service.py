@@ -51,6 +51,9 @@ Rules:
 class GeminiService:
     """Slip extraction using Gemini Flash API."""
 
+    def __init__(self):
+        self.last_token_count: int = 0  # โทเคนจาก request ล่าสุด (จาก usageMetadata)
+
     def is_configured(self) -> bool:
         return bool(GEMINI_API_KEY)
 
@@ -94,6 +97,13 @@ class GeminiService:
 
         resp = self._call_with_retry(payload)
         data = resp.json()
+
+        # อ่าน token usage จาก Gemini response (ข้อมูลจริง)
+        usage = data.get("usageMetadata", {})
+        self.last_token_count = usage.get("totalTokenCount", 0)
+        print(f"[Gemini] tokens used: {self.last_token_count} "
+              f"(prompt={usage.get('promptTokenCount',0)}, "
+              f"output={usage.get('candidatesTokenCount',0)})")
 
         # Extract text from response
         try:

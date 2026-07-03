@@ -21,8 +21,8 @@
 │  SQLite                          │
 ├──────────────────────────────────┤
 │      Slip Reader Layer           │
-│  Qwen3-VL Local (primary)        │
-│  EasySlip API (manual fallback)  │
+│  Gemini gemini-3.1-flash-lite    │
+│  (Vision API — Cloud)            │
 └──────────────────────────────────┘
 ```
 
@@ -77,9 +77,7 @@ SQLite
 
 | Component | Description |
 |:--|:--|
-| **Qwen3-VL:8b (primary)** | Local vision model บน Ollama — 6.1GB, ใช้ 4060 8GB VRAM ได้ |
-| **Qwen3-VL:4b (fallback)** | เล็กกว่า (3.3GB) — ถ้า VRAM ไม่พอ |
-| **EasySlip API (manual)** | ใช้เมื่อ user กด Retry with EasySlip — **ไม่ auto fallback** |
+| **Gemini gemini-3.1-flash-lite** | Vision API — อ่านสลิปผ่าน Google Gemini API (Cloud) |
 
 **Output schema (SlipExtractionResult):**
 ```python
@@ -114,7 +112,7 @@ Preprocess image
   └── Compress if file too large
   │
   ▼
-Send to Qwen3-VL via Ollama
+Send to Gemini gemini-3.1-flash-lite (Vision API)
   │
   ▼
 Raw model output
@@ -175,7 +173,7 @@ Rules:
 
 #### Raw Text → Structured Output
 
-V1 ใช้ raw text output จาก model แล้วมี parser แยกอีกชั้น
+V1 ใช้ raw text output จาก Gemini แล้วมี parser แยกอีกชั้น
 
 ```
 Raw model output
@@ -187,17 +185,7 @@ validate against Pydantic schema
 normalize fields
 ```
 
-local vision models มักตอบ JSON ไม่สะอาด — มี markdown wrapper, extra text, quotes ไม่ตรง
-
-#### เมื่อไหร่ใช้ EasySlip?
-
-**ไม่ auto fallback** — เพราะสลิปคือข้อมูลการเงิน ห้ามส่งออกนอกเครื่องเงียบ ๆ
-
-EasySlip ใช้เมื่อ:
-- local model ไม่พร้อม
-- confidence ต่ำกว่า 0.6
-- QR / reference_no สำคัญมาก
-- user กดปุ่ม **Retry with EasySlip** เอง
+Gemini อาจตอบ JSON ไม่สะอาด — มี markdown wrapper, extra text — parser จัดการให้
 
 ---
 
@@ -470,21 +458,17 @@ def has_critical_missing_fields(result: SlipExtractionResult) -> bool:
 
 ## 8. Error Handling
 
-### Model Health Check
+### Gemini API Health Check
 
-ก่อนเริ่ม process Slip Reader — Business Agent ตรวจก่อนว่า Ollama / model พร้อมหรือไม่
+ก่อนเริ่ม process Slip Reader — Business Agent ตรวจว่า GEMINI_API_KEY ถูกต้องและเรียก API ได้
 
 ```python
 def is_model_ready() -> bool:
-    """Check if Ollama is running and model is available"""
-    try:
-        resp = requests.get("http://localhost:11434/api/tags", timeout=2)
-        return "qwen3-vl" in resp.text
-    except:
-        return False
+    """Check if Gemini API key is configured"""
+    return bool(settings.GEMINI_API_KEY)
 ```
 
-### Flow เมื่อ Model ไม่พร้อม
+### Flow เมื่อ Gemini API ล้มเหลว
 
 ```
 FastAPI รับไฟล์
@@ -496,26 +480,25 @@ FastAPI รับไฟล์
 เริ่ม process
   │
   ▼
-เช็ก Ollama / model health
+เรียก Gemini Vision API
   │
-  ├── พร้อม → process ปกติ
+  ├── สำเร็จ → process ปกติ
   │
-  └── ไม่พร้อม
+  └── ล้มเหลว (API Error / Timeout)
         │
         ▼
-      document.processing_status = "waiting_model"
-      document.error_message = "Local model unavailable"
+      document.processing_status = "failed"
+      document.error_message = "Gemini API error: <detail>"
         │
         ▼
       UI แจ้ง user
         │
-        ├── ปุ่ม Retry (ลองอีกครั้ง)
-        └── ปุ่ม Use EasySlip (manual fallback — user ยืนยันแล้ว)
+        └── ปุ่ม Retry (ลองอีกครั้ง)
 ```
 
 ### Key Principle
 
-**ไม่ใช้ EasySlip auto fallback** — ผิดหลัก privacy และ Offline First ต้องให้ user ตัดสินใจเอง
+**Gemini เป็น Slip Reader เดียวใน V1** — ไม่มี local fallback, ไม่มี third-party fallback
 
 ---
 
@@ -528,7 +511,7 @@ FastAPI รับไฟล์
 | UI | Next.js + Tailwind |
 | Business Agent | Python / FastAPI (orchestration + classify) |
 | Ledger | SQLite + SQLAlchemy |
-| Slip Reader | Qwen3-VL:8b (Ollama local) → EasySlip API (manual fallback) |
+| Slip Reader | Gemini gemini-3.1-flash-lite (Vision API) |
 | Export | CSV / Excel (openpyxl) |
 
 ### Desktop App (ช่วงต่อไป)
@@ -578,11 +561,10 @@ E:\GitHup\ledger-inbox\
 │   │       │   └── business_agent.py ← orchestrator
 │   │       │
 │   │       ├── services/
-│   │       │   ├── slip_reader_service.py  ← Qwen3-VL + Ollama
+│   │       │   ├── gemini_service.py       ← Gemini Vision API
+│   │       │   ├── classification_service.py
 │   │       │   ├── dedup_service.py
-│   │       │   └── transaction_service.py
 │   │       │   └── export_service.py
-│   │       │   └── easy_slip_service.py
 │   │       │
 │   │       ├── schemas/
 │   │       │   └── slip.py        ← SlipExtractionResult
@@ -616,9 +598,9 @@ E:\GitHup\ledger-inbox\
 
 ## 12. Principles
 
-- **Slip Reader = service call, ไม่ใช่ internal HTTP**
+- **Slip Reader = Gemini Vision API call ผ่าน `gemini_service.py`**
 - **Raw output → parser → validate — 3 ขั้นตอนแยกกัน**
 - **Dedup 3 ระดับ — ห้ามลบอัตโนมัติ**
 - **Review decision = function ที่มี override rules**
-- **EasySlip = manual fallback เท่านั้น — ไม่ auto**
+- **ไม่มี EasySlip — ไม่มี local model — Gemini เดียว**
 - **ไม่มี internal auth — ทุกอย่างวิ่งในเครื่อง**

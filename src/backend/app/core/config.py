@@ -15,3 +15,9 @@ CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
+# Rate limits — อัปเดตใน .env ถ้า Google เปลี่ยน limit
+# ค่า default = gemini-3.1-flash-lite free tier (Jul 2026)
+GEMINI_RPM_LIMIT = int(os.getenv("GEMINI_RPM_LIMIT", "15"))
+GEMINI_TPM_LIMIT = int(os.getenv("GEMINI_TPM_LIMIT", "250000"))
+GEMINI_RPD_LIMIT = int(os.getenv("GEMINI_RPD_LIMIT", "500"))
+

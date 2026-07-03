@@ -58,6 +58,24 @@ def classify_transaction(
     if not text:
         return "unknown"
 
+    # Heuristic: if receiver name exists but sender is different, it's income (money coming to user)
+    if receiver_name and sender_name:
+        r_clean = receiver_name.strip().lower()
+        s_clean = sender_name.strip().lower()
+        # If same person → transfer
+        if r_clean == s_clean or s_clean in r_clean or r_clean in s_clean:
+            return "transfer"
+        # Different people + receiver exists → income
+        return "income"
+
+    # If only receiver → income
+    if receiver_name and not sender_name:
+        return "income"
+
+    # If only sender → expense (user sending money)
+    if sender_name and not receiver_name:
+        return "expense"
+
     # Check transfer first
     if any(kw in text for kw in TRANSFER_KEYWORDS):
         return "transfer"

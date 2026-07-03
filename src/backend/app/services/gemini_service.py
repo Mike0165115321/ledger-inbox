@@ -14,12 +14,13 @@ import requests
 import time
 
 from ..schemas.slip import SlipExtractionResult
+from ..core.config import GEMINI_API_KEY, GEMINI_MODEL
 
 GEMINI_API_URL = (
-    "https://generativelanguage.googleapis.com/v1beta/models/"
-    "gemini-2.0-flash:generateContent"
+    f"https://generativelanguage.googleapis.com/v1beta/models/"
+    f"{GEMINI_MODEL}:generateContent"
 )
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
 
 SLIP_PROMPT = """Extract payment slip information from these images (1-3 images of the same slip).
 

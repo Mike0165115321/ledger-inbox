@@ -1,54 +1,99 @@
 # 📒 Ledger Inbox — กล่องบัญชีอัจฉริยะ
 
-> **โปรเจคบัญชีส่วนตัวสำหรับนักพัฒนาฟรีแลนซ์**
+> **ระบบบัญชีส่วนตัวสำหรับนักพัฒนาฟรีแลนซ์**
 > Evidence-first Accounting — ทุกตัวเลขต้องผูกกับหลักฐาน
 
 ---
 
-## แก่นของโปรเจค
+## 🎯 V1 — Complete ✅
 
-ไม่ใช่แอพบัญชี — คือ **Developer Business OS**
-
-ระบบที่ตอบคำถามพวกนี้ให้ได้:
-- แต่ละโปรเจกต์ ได้เงินเท่าไหร่ จ่ายไปเท่าไหร่ เหลือกำไรจริงเท่าไหร่
-- ปีนี้รายได้รวมเท่าไหร่ ค่า AI/API/Server/Domain หมดไปเท่าไหร่
-- รายการไหนยังไม่มีหลักฐาน รายการไหนยังไม่รู้หมวด
-- ใกล้ถึงเกณฑ์ภาษีหรือยัง เตรียมข้อมูลยื่นภาษีได้ไหม
-
-## V1
-
-**Ledger Agent ตัวเดียว — 6 อย่าง:**
-- ✅ เก็บรายรับ
-- ✅ เก็บรายจ่าย
-- ✅ แนบสลิป
-- ✅ จัดหมวด
-- ✅ ผูกโปรเจกต์
-- ✅ สรุปกำไร
-
-**ไม่ทำ:** Login, Cloud, Multi-user, Banking API, Tax Filing, Dashboard หรู
-
-## Stack
-
-| Layer | Tech |
-|:--|:--|
-| Frontend | Next.js / React |
-| Backend | Node.js / Fastify / Hono |
-| Database | SQLite (Offline First) |
-| AI | Vision model API |
-| Desktop | Tauri / Electron (phase 2) |
-
-## Roadmap
-
-| Week | Focus |
-|:--|:--|
-| 1 | Core Ledger — ยังไม่มี AI ก็ใช้จดบัญชีได้ |
-| 2 | AI Extraction — Vision API อ่านสลิป |
-| 3 | Classification + Review — จัดหมวดอัตโนมัติ |
-| 4 | Reports — Export + Tax Summary |
+| Feature | Status |
+|:--|:--:|
+| ✅ เก็บรายรับ / รายจ่าย | Done |
+| ✅ แนบสลิป + AI อ่านอัตโนมัติ (Qwen3-VL) | Done |
+| ✅ จัดหมวดอัตโนมัติ + ผูกโปรเจกต์ | Done |
+| ✅ กันรายการซ้ำ 3 ระดับ | Done |
+| ✅ Review Queue — ยืนยัน/แก้ไข/ปฏิเสธ | Done |
+| ✅ Dashboard + สรุปภาษีรายปี | Done |
+| ✅ Export CSV / Excel / Tax Summary | Done |
+| ❌ Login / Cloud / Multi-user | V1 ไม่ทำ |
+| ❌ Banking API | V1 ไม่ทำ |
 
 ---
 
-## ทำไมถึงอยู่ GitHup ไม่ใช่ Aetox
+## 🧱 Stack (Actual)
 
-เพราะโปรเจคนี้คือ **แอปพลิเคชัน** (Desktop App + Database + Agent) ไม่ใช่ AI skill หรือ agent component
-และจะ push ขึ้น GitHub (`Mike0165115321/ledger-inbox`) เมื่อพร้อม
+| Layer | Tech |
+|:--|:--|
+| Frontend | Next.js 16 + Tailwind CSS v4 |
+| Backend | Python FastAPI |
+| Database | SQLite (Offline First) |
+| AI Slip Reader | Qwen3-VL:8b via Ollama (local) |
+| Export | CSV + Excel (openpyxl) |
+
+---
+
+## 🚀 Quick Start
+
+```bash
+# วิธีที่ 1 — ดับเบิลคลิก
+run-all.bat
+
+# วิธีที่ 2 — manual
+# Terminal 1
+cd src/backend
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+
+# Terminal 2
+cd src/frontend
+npm run dev
+
+# เปิด http://localhost:3000
+```
+
+> **ต้องการ AI อ่านสลิป:** ต้องรัน Ollama ก่อน และ `ollama pull qwen3-vl:8b`
+
+---
+
+## 📁 Project Structure
+
+```
+src/
+├── backend/           # FastAPI (port 8000)
+│   └── app/
+│       ├── api/       # documents, transactions, projects, dashboard, health
+│       ├── agents/    # Business Agent (classify + dedup + review)
+│       ├── services/  # Slip Reader, EasySlip, Export, Dedup
+│       ├── prompts/   # Qwen3-VL prompt templates
+│       ├── schemas/   # Pydantic models
+│       └── db/        # SQLAlchemy models + SQLite
+│
+└── frontend/          # Next.js 16 (port 3000)
+    └── src/
+        ├── app/       # 5 pages: Dashboard, Inbox, Transactions, Projects, Review
+        ├── components/# Layout, Forms, FileUpload, StatCard
+        └── lib/       # API client
+```
+
+---
+
+## 🗺️ Architecture
+
+```
+Upload Slip → Slip Reader (Qwen3-VL) → Business Agent (classify + dedup) → Ledger (SQLite)
+                                                    ↓
+                                            Review Queue (ถ้า AI ไม่มั่นใจ)
+                                                    ↓
+                                            User ยืนยัน/แก้ไข/ปฏิเสธ
+```
+
+ดูรายละเอียดเพิ่มเติม: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+
+---
+
+## ⚠️ Non-goals (V1)
+
+- **Offline First 100%** — ข้อมูลทั้งหมดอยู่ในเครื่อง
+- **No SaaS** — Desktop-first, เตรียมห่อ Tauri/Electron ต่อ
+- **EasySlip manual fallback เท่านั้น** — ไม่ auto ส่งข้อมูลออกนอกเครื่อง
+- โปรเจกต์นี้เป็น **Module** ของ AI Personal Assistant ในอนาคต

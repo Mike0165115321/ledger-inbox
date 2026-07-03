@@ -15,7 +15,7 @@ from ..schemas.slip import SlipExtractionResult
 
 EASYSLIP_API_URL = os.getenv(
     "EASYSLIP_API_URL",
-    "https://api.easyslip.com/v2/verify/bank",
+    "https://api.easyslip.com/v1/verify",
 )
 EASYSLIP_API_KEY = os.getenv("EASYSLIP_API_KEY", "")
 
@@ -58,24 +58,33 @@ class EasySlipService:
         data = resp.json()
 
         # Log response for debugging
-        print(f"[EasySlip] v2 response: success={data.get('success')}")
+        print(f"[EasySlip] v1 response: {resp.status_code}")
 
-        if not data.get("success"):
-            error_msg = data.get("error", {}).get("message", str(data))
-            raise RuntimeError(f"EasySlip API error: {error_msg}")
+        return self._parse_response(data)
 
-        return self._parse_v2_response(data)
+    def _parse_response(self, data: dict) -> SlipExtractionResult:
+        """Parse EasySlip API response into SlipExtractionResult."""
+        # v2 format: {"success": true, "data": {"rawSlip": {...}}}
+        # v1 format: {"data": {...}} (simpler)
 
-    def _parse_v2_response(self, data: dict) -> SlipExtractionResult:
-        """Parse EasySlip v2 response into SlipExtractionResult."""
-        raw = data.get("data", {}).get("rawSlip", {})
-        if not raw:
-            return SlipExtractionResult(
-                confidence=0.0,
-                warnings=["empty_response"],
-            )
+        # Check v2 format first
+        raw = data.get("data", {}).get("rawSlip")
+        if raw:
+            return self._parse_v2(raw)
 
-        # Amount
+        # Try v1 format (simpler flat structure)
+        slip_data = data.get("data", data)
+        if isinstance(slip_data, dict) and slip_data.get("amount") is not None:
+            return self._parse_v1(slip_data)
+
+        # Empty / unrecognized
+        return SlipExtractionResult(
+            confidence=0.0,
+            warnings=["empty_response"],
+        )
+
+    def _parse_v2(self, raw: dict) -> SlipExtractionResult:
+        """Parse v2 response format."""
         amount_data = raw.get("amount", {})
         amount = amount_data.get("amount") or (
             amount_data.get("local", {}).get("amount")
@@ -136,6 +145,50 @@ class EasySlipService:
             bank_or_wallet=bank,
             reference_no=ref,
             note=None,
+            confidence=confidence,
+            warnings=warnings,
+        )
+
+    def _parse_v1(self, d: dict) -> SlipExtractionResult:
+        """Parse v1 (simpler) response format."""
+        amount = d.get("amount")
+        if amount is not None:
+            try:
+                amount = float(str(amount).replace(",", ""))
+            except (ValueError, TypeError):
+                amount = None
+
+        dt_str = d.get("date") or d.get("transactionDate")
+        transaction_datetime = None
+        if dt_str:
+            try:
+                transaction_datetime = datetime.fromisoformat(
+                    str(dt_str).replace("Z", "+00:00")
+                )
+            except (ValueError, Exception):
+                pass
+
+        sender = d.get("sender") or d.get("senderName") or d.get("from")
+        receiver = d.get("receiver") or d.get("receiverName") or d.get("to")
+        bank = d.get("bank") or d.get("bankName")
+        ref = d.get("ref") or d.get("reference") or d.get("transRef")
+        note = d.get("note") or d.get("memo")
+
+        confidence = 0.90
+        warnings = []
+        if amount is None:
+            warnings.append("amount_not_found")
+            confidence = 0.5
+
+        return SlipExtractionResult(
+            amount=amount,
+            currency="THB",
+            transaction_datetime=transaction_datetime,
+            sender_name=sender,
+            receiver_name=receiver,
+            bank_or_wallet=bank,
+            reference_no=ref,
+            note=note,
             confidence=confidence,
             warnings=warnings,
         )

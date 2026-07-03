@@ -1,0 +1,215 @@
+/**
+ * API client for Ledger Inbox backend (FastAPI :8000)
+ */
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+    this.name = "ApiError";
+  }
+}
+
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const url = `${API_BASE}${path}`;
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    ...options,
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new ApiError(body.detail || "เกิดข้อผิดพลาด", res.status);
+  }
+
+  return res.json();
+}
+
+export const api = {
+  // ── Dashboard ──
+  getDashboardSummary: (year?: number) =>
+    request<DashboardSummary>(
+      `/api/dashboard/summary${year ? `?year=${year}` : ""}`
+    ),
+
+  // ── Transactions ──
+  getTransactions: (params?: {
+    type?: string;
+    project_id?: string;
+    month?: string;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.type) qs.set("type", params.type);
+    if (params?.project_id) qs.set("project_id", params.project_id);
+    if (params?.month) qs.set("month", params.month);
+    const query = qs.toString();
+    return request<Transaction[]>(`/api/transactions${query ? `?${query}` : ""}`);
+  },
+
+  getTransaction: (id: string) => request<Transaction>(`/api/transactions/${id}`),
+
+  createTransaction: (data: TransactionFormData) =>
+    request<Transaction>("/api/transactions", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  updateTransaction: (id: string, data: Partial<TransactionFormData>) =>
+    request<Transaction>(`/api/transactions/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  deleteTransaction: (id: string) =>
+    request<{ message: string }>(`/api/transactions/${id}`, {
+      method: "DELETE",
+    }),
+
+  // ── Projects ──
+  getProjects: () => request<ProjectWithStats[]>("/api/projects"),
+
+  getProject: (id: string) => request<ProjectWithStats>(`/api/projects/${id}`),
+
+  createProject: (data: ProjectFormData) =>
+    request<Project>("/api/projects", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  updateProject: (id: string, data: Partial<ProjectFormData>) =>
+    request<Project>(`/api/projects/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  deleteProject: (id: string) =>
+    request<{ message: string }>(`/api/projects/${id}`, {
+      method: "DELETE",
+    }),
+
+  // ── Documents ──
+  getDocuments: () => request<Document[]>("/api/documents"),
+
+  uploadDocument: async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const url = `${API_BASE}/api/documents/upload`;
+    const res = await fetch(url, { method: "POST", body: formData });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new ApiError(body.detail || "อัปโหลดไม่สำเร็จ", res.status);
+    }
+    return res.json();
+  },
+
+  // ── Categories ──
+  getCategories: () => request<Category[]>("/api/categories"),
+};
+
+// ── Types ──
+
+export interface DashboardSummary {
+  total_income: number;
+  total_expense: number;
+  profit: number;
+  transaction_count: number;
+  monthly_breakdown: MonthlyBreakdown[];
+  top_projects: TopProject[];
+}
+
+export interface MonthlyBreakdown {
+  month: string;
+  income: number;
+  expense: number;
+}
+
+export interface TopProject {
+  project_id: string;
+  income: number;
+  expense: number;
+}
+
+export interface Transaction {
+  id: string;
+  type: string;
+  category: string | null;
+  amount: number;
+  currency: string;
+  transaction_datetime: string | null;
+  sender_name: string | null;
+  receiver_name: string | null;
+  bank_or_wallet: string | null;
+  reference_no: string | null;
+  note: string | null;
+  confidence: number;
+  review_status: string;
+  duplicate_status: string;
+  project_id: string | null;
+  document_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TransactionFormData {
+  type: string;
+  category?: string | null;
+  amount: number;
+  currency?: string;
+  transaction_datetime?: string | null;
+  sender_name?: string | null;
+  receiver_name?: string | null;
+  bank_or_wallet?: string | null;
+  reference_no?: string | null;
+  note?: string | null;
+  project_id?: string | null;
+  document_id?: string | null;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  client_name: string | null;
+  status: string;
+  started_at: string | null;
+  ended_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectWithStats extends Project {
+  total_income: number;
+  total_expense: number;
+  profit: number;
+  transaction_count: number;
+}
+
+export interface ProjectFormData {
+  name: string;
+  client_name?: string | null;
+  status?: string;
+  started_at?: string | null;
+  ended_at?: string | null;
+}
+
+export interface Document {
+  id: string;
+  file_name: string;
+  file_type: string;
+  file_path: string;
+  file_sha256: string | null;
+  file_size: number | null;
+  uploaded_at: string;
+  processing_status: string;
+  error_message: string | null;
+  created_at: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  type: string;
+  created_at: string;
+}

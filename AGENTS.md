@@ -8,6 +8,7 @@
 
 | Agent | Scope | Primary Stack | Role |
 |-------|:------|:--------------|:-----|
+| `steward` 🏆 | Environment setup, dependency install, scaffold, config, git, research | PowerShell, Node.js, Python, Ollama | เตรียมความพร้อมก่อนสร้าง |
 | `frontend.md` 🔵 | UI, components, layout, state management, API routes | TypeScript / Next.js / Tailwind | หน้าจอทั้งหมด + UX |
 | `backend-py.md` 🟣 | AI pipeline, Vision OCR, transaction logic, SQLite, export | Python / FastAPI / SQLAlchemy | Business logic + AI |
 
@@ -51,6 +52,18 @@
 
 ## 🎯 Agent Scopes
 
+### steward 🏆
+
+| ทำ | ไม่ทำ |
+|:--|:--|
+| ✅ Environment check (Node, Python, Ollama) | ❌ เขียน business logic |
+| ✅ npm / pip / uv install dependencies | ❌ ออกแบบ UI |
+| ✅ Project scaffold + config files | ❌ Database schema design |
+| ✅ Git init / commit / push / PR | ❌ Slip Reader pipeline |
+| ✅ Research (API options, model perf) | ❌ Transaction classification |
+| ✅ Agent coordination (AGENTS.md) | |
+| ✅ Token cost checking | |
+
 ### frontend.md
 
 | ทำ | ไม่ทำ |
@@ -88,12 +101,15 @@
 ## 📁 File Structure Convention
 
 ```
+AGENTS.md           # steward territory — ลงทะเบียน agent
+docs/
+  REQUIREMENTS.md   # steward territory — ตั้งค่าเริ่มต้น
+  ARCHITECTURE.md   # backend-py.md territory — ออกแบบ system
 src/
   frontend/         # frontend.md territory
   backend/          # backend-py.md territory
     agents/         # Business Agent logic
   shared/           # types / schemas
-docs/
 tests/
 assets/
 ```

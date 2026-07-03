@@ -273,7 +273,7 @@ export interface SlipExtraction {
 }
 
 export interface ServiceHealth {
-  easyslip_configured: boolean;
+  gemini_configured: boolean;
   service: string;
   note: string;
 }

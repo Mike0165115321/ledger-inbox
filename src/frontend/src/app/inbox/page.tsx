@@ -55,19 +55,19 @@ export default function InboxPage() {
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-zinc-900">กล่องหลักฐาน</h1>
-        <p className="text-zinc-500 mt-1">อัปโหลดสลิป — ระบบอ่านด้วย EasySlip API</p>
+        <p className="text-zinc-500 mt-1">อัปโหลดสลิป — ระบบอ่านด้วย Gemini Flash</p>
       </div>
 
       {/* Service Status */}
       {serviceHealth && (
         <div className={`rounded-lg border px-4 py-3 text-sm ${
-          serviceHealth.easyslip_configured
+          serviceHealth.gemini_configured
             ? "bg-emerald-50 border-emerald-200 text-emerald-700"
             : "bg-amber-50 border-amber-200 text-amber-700"
         }`}>
-          {serviceHealth.easyslip_configured
-            ? "🟢 EasySlip API พร้อมใช้งาน"
-            : "🟡 ยังไม่ได้ตั้งค่า EASYSLIP_API_KEY — ใส่ใน environment variable"}
+          {serviceHealth.gemini_configured
+            ? "🟢 Gemini Flash พร้อมใช้งาน"
+            : "🟡 ยังไม่ได้ตั้งค่า GEMINI_API_KEY — ใส่ใน .env"}
         </div>
       )}
 

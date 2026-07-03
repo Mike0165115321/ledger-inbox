@@ -1,5 +1,5 @@
 """
-POST   /api/documents/upload    — อัปโหลดสลิป + ประมวลผลด้วย EasySlip ทันที
+POST   /api/documents/upload    — อัปโหลดสลิป + ประมวลผลด้วย Gemini Flash ทันที
 GET    /api/documents           — รายการเอกสารทั้งหมด
 """
 
@@ -15,7 +15,7 @@ from ..db.models import Document
 from ..schemas.document import DocumentResponse
 from ..schemas.slip import SlipProcessResponse
 from ..core.config import UPLOAD_DIR
-from ..services.easy_slip_service import easy_slip
+from ..services.gemini_service import gemini
 from ..agents.business_agent import run_pipeline
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
@@ -63,9 +63,9 @@ async def upload_document(
     db.commit()
     db.refresh(doc)
 
-    # Auto-process with EasySlip
+    # Auto-process with Gemini Flash
     try:
-        result = easy_slip.read(file_path)
+        result = gemini.read(file_path)
 
         doc.extracted_text = str(result.model_dump())
         doc.processing_status = "completed"

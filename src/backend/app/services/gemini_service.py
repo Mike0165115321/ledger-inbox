@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Optional
 
 import requests
+import time
 
 from ..schemas.slip import SlipExtractionResult
 
@@ -90,12 +91,7 @@ class GeminiService:
             },
         }
 
-        resp = requests.post(
-            f"{GEMINI_API_URL}?key={GEMINI_API_KEY}",
-            json=payload,
-            timeout=30,
-        )
-        resp.raise_for_status()
+        resp = self._call_with_retry(payload)
         data = resp.json()
 
         # Extract text from response
@@ -123,6 +119,29 @@ class GeminiService:
                 )
 
         return self._normalize(obj)
+
+    def _call_with_retry(self, payload: dict, max_retries: int = 3) -> requests.Response:
+        """Call Gemini API with retry on rate limit (429)."""
+        url = f"{GEMINI_API_URL}?key={GEMINI_API_KEY}"
+        last_error = None
+
+        for attempt in range(max_retries):
+            resp = requests.post(url, json=payload, timeout=30)
+
+            if resp.status_code == 429:
+                wait = (attempt + 1) * 5  # 5s, 10s, 15s
+                print(f"[Gemini] 429 rate limit, retrying in {wait}s...")
+                time.sleep(wait)
+                last_error = resp
+                continue
+
+            resp.raise_for_status()
+            return resp
+
+        raise RuntimeError(
+            f"Gemini rate limited after {max_retries} retries. "
+            "Wait a moment and try again."
+        )
 
     def _normalize(self, data: dict) -> SlipExtractionResult:
         """Clean and normalize extracted fields."""

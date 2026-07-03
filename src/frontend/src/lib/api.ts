@@ -98,6 +98,9 @@ export const api = {
       method: "DELETE",
     }),
 
+  getDocumentFileUrl: (docId: string) =>
+    `${API_BASE}/api/documents/${docId}/file`,
+
   uploadDocument: async (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
@@ -142,7 +145,19 @@ export const api = {
   getServiceHealth: () => request<ServiceHealth>("/api/health/model"),
   getQueueStatus: () => request<QueueStatus>("/api/health/queue"),
 
+  // ── Timeline ──
+  getTimeline: (params?: { granularity?: "day" | "week" | "month" | "year"; year?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.granularity) qs.set("granularity", params.granularity);
+    if (params?.year) qs.set("year", String(params.year));
+    const query = qs.toString();
+    return request<TimelineResponse>(`/api/dashboard/timeline${query ? `?${query}` : ""}`);
+  },
+
   // ── Tax & Export ──
+  getTaxCalculation: (year?: number) =>
+    request<TaxCalculationResponse>(`/api/dashboard/tax-calculation${year ? `?year=${year}` : ""}`),
+
   getTaxSummary: (year?: number) =>
     request<TaxSummary>(`/api/dashboard/tax-summary${year ? `?year=${year}` : ""}`),
 
@@ -334,4 +349,40 @@ export interface TaxSummary {
   expense_categories: { name: string; amount: number }[];
   monthly_breakdown: { month: string; income: number; expense: number }[];
   tax_bracket_note: string;
+}
+
+export interface TimelineResponse {
+  granularity: string;
+  year: number;
+  data: TimelinePoint[];
+}
+
+export interface TimelinePoint {
+  period: string;
+  income: number;
+  expense: number;
+  count: number;
+}
+
+export interface TaxCalculationResponse {
+  year: number;
+  gross_income: number;
+  total_expenses: number;
+  expense_deduction: number;
+  income_after_expenses: number;
+  allowances: { label: string; amount: number }[];
+  total_allowances: number;
+  net_taxable_income: number;
+  brackets: TaxBracketLine[];
+  total_tax: number;
+  effective_rate: number;
+  note: string;
+}
+
+export interface TaxBracketLine {
+  label: string;
+  rate: number;
+  rate_pct: string;
+  taxable: number;
+  tax: number;
 }

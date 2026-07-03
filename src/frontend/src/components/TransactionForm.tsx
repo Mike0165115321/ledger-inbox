@@ -1,6 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import {
+  TrendingUp,
+  TrendingDown,
+  ArrowLeftRight,
+  User,
+  HelpCircle,
+} from "lucide-react";
+import Modal from "@/components/ui/Modal";
+import Input, { Select, Textarea } from "@/components/ui/Input";
+import Button from "@/components/ui/Button";
 
 interface TransactionFormProps {
   isOpen: boolean;
@@ -33,11 +43,11 @@ interface TransactionFormProps {
 }
 
 const TYPES = [
-  { value: "income", label: "💰 รายรับ" },
-  { value: "expense", label: "💸 รายจ่าย" },
-  { value: "transfer", label: "↔️ โอน" },
-  { value: "personal", label: "👤 ส่วนตัว" },
-  { value: "unknown", label: "❓ ไม่แน่ใจ" },
+  { value: "income", label: "รายรับ", icon: TrendingUp },
+  { value: "expense", label: "รายจ่าย", icon: TrendingDown },
+  { value: "transfer", label: "โอน", icon: ArrowLeftRight },
+  { value: "personal", label: "ส่วนตัว", icon: User },
+  { value: "unknown", label: "ไม่แน่ใจ", icon: HelpCircle },
 ];
 
 export default function TransactionForm({
@@ -53,221 +63,207 @@ export default function TransactionForm({
     type: initial?.type || "income",
     category: initial?.category || "",
     amount: initial?.amount || 0,
-    transaction_datetime: initial?.transaction_datetime || new Date().toISOString().slice(0, 16),
+    transaction_datetime:
+      initial?.transaction_datetime || new Date().toISOString().slice(0, 16),
     note: initial?.note || "",
     project_id: initial?.project_id || "",
     sender_name: initial?.sender_name || "",
     receiver_name: initial?.receiver_name || "",
     bank_or_wallet: initial?.bank_or_wallet || "",
   });
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
-  if (!isOpen) return null;
+  // Reset form when initial changes
+  useEffect(() => {
+    if (isOpen) {
+      setForm({
+        type: initial?.type || "income",
+        category: initial?.category || "",
+        amount: initial?.amount || 0,
+        transaction_datetime:
+          initial?.transaction_datetime || new Date().toISOString().slice(0, 16),
+        note: initial?.note || "",
+        project_id: initial?.project_id || "",
+        sender_name: initial?.sender_name || "",
+        receiver_name: initial?.receiver_name || "",
+        bank_or_wallet: initial?.bank_or_wallet || "",
+      });
+      setDirty(false);
+    }
+  }, [initial, isOpen]);
 
-  const filteredCategories = categories.filter((c) => c.type === form.type);
+  const updateField = useCallback(
+    <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
+      setForm((prev) => ({ ...prev, [key]: value }));
+      setDirty(true);
+    },
+    []
+  );
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave({
-      ...form,
-      transaction_datetime: new Date(form.transaction_datetime).toISOString(),
-    });
+  const handleClose = () => {
+    if (dirty) {
+      if (!confirm("คุณมีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก ต้องการปิดหรือไม่?"))
+        return;
+    }
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-auto">
-        <div className="px-6 py-4 border-b border-zinc-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-zinc-800">{title}</h2>
-          <button
-            onClick={onClose}
-            className="text-zinc-400 hover:text-zinc-600 text-xl leading-none"
-          >
-            ✕
-          </button>
-        </div>
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await onSave({
+        ...form,
+        transaction_datetime: new Date(form.transaction_datetime).toISOString(),
+      });
+      setDirty(false);
+      onClose();
+    } catch {
+      // error handled upstream
+    } finally {
+      setSaving(false);
+    }
+  };
 
-        <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
-          {/* Type */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-600 mb-1.5">
-              ประเภท
-            </label>
-            <div className="flex gap-1.5 flex-wrap">
-              {TYPES.map((t) => (
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      const target = e.target as HTMLElement;
+      if (target.tagName !== "TEXTAREA") {
+        e.preventDefault();
+        handleSubmit(e);
+      }
+    }
+  };
+
+  const filteredCategories = categories.filter((c) => c.type === form.type);
+
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose} title={title}>
+      <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="px-6 py-4 space-y-4">
+        {/* Type */}
+        <div>
+          <label className="block text-sm font-medium text-text mb-1.5">
+            ประเภท
+          </label>
+          <div className="flex gap-1.5 flex-wrap">
+            {TYPES.map((t) => {
+              const Icon = t.icon;
+              return (
                 <button
                   key={t.value}
                   type="button"
                   onClick={() => {
-                    setForm({ ...form, type: t.value, category: "" });
+                    updateField("type", t.value);
+                    updateField("category", "");
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     form.type === t.value
-                      ? "bg-zinc-900 text-white"
-                      : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                      ? "bg-accent text-text-on-accent"
+                      : "bg-surface-hover text-text-muted hover:bg-surface-hover"
                   }`}
                 >
+                  <Icon className="w-4 h-4" />
                   {t.label}
                 </button>
-              ))}
-            </div>
+              );
+            })}
           </div>
+        </div>
 
-          {/* Amount */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-600 mb-1.5">
-              จำนวนเงิน (บาท)
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              required
-              value={form.amount || ""}
-              onChange={(e) =>
-                setForm({ ...form, amount: parseFloat(e.target.value) || 0 })
-              }
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
-              placeholder="0.00"
-            />
-          </div>
+        {/* Amount */}
+        <Input
+          label="จำนวนเงิน (บาท)"
+          type="number"
+          step="0.01"
+          min="0"
+          required
+          value={form.amount || ""}
+          onChange={(e) => updateField("amount", parseFloat(e.target.value) || 0)}
+          placeholder="0.00"
+        />
 
-          {/* Date */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-600 mb-1.5">
-              วันที่
-            </label>
-            <input
-              type="datetime-local"
-              required
-              value={form.transaction_datetime}
-              onChange={(e) =>
-                setForm({ ...form, transaction_datetime: e.target.value })
-              }
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
-            />
-          </div>
+        {/* Date */}
+        <Input
+          label="วันที่"
+          type="datetime-local"
+          required
+          value={form.transaction_datetime}
+          onChange={(e) => updateField("transaction_datetime", e.target.value)}
+        />
 
-          {/* Category */}
-          {filteredCategories.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-zinc-600 mb-1.5">
-                หมวดหมู่
-              </label>
-              <select
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
-              >
-                <option value="">— เลือก —</option>
-                {filteredCategories.map((c) => (
-                  <option key={c.id} value={c.name}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+        {/* Category */}
+        {filteredCategories.length > 0 && (
+          <Select
+            label="หมวดหมู่"
+            value={form.category}
+            onChange={(e) => updateField("category", e.target.value)}
+            options={filteredCategories.map((c) => ({
+              value: c.name,
+              label: c.name,
+            }))}
+            placeholder="— เลือก —"
+          />
+        )}
 
-          {/* Project */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-600 mb-1.5">
-              โปรเจกต์
-            </label>
-            <select
-              value={form.project_id}
-              onChange={(e) => setForm({ ...form, project_id: e.target.value })}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
-            >
-              <option value="">— ไม่ผูกโปรเจกต์ —</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* Project */}
+        <Select
+          label="โปรเจกต์"
+          value={form.project_id}
+          onChange={(e) => updateField("project_id", e.target.value)}
+          options={projects.map((p) => ({
+            value: p.id,
+            label: p.name,
+          }))}
+          placeholder="— ไม่ผูกโปรเจกต์ —"
+        />
 
-          {/* Sender / Receiver */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-zinc-600 mb-1.5">
-                ผู้ส่ง
-              </label>
-              <input
-                type="text"
-                value={form.sender_name}
-                onChange={(e) =>
-                  setForm({ ...form, sender_name: e.target.value })
-                }
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
-                placeholder="ชื่อผู้ส่ง"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-zinc-600 mb-1.5">
-                ผู้รับ
-              </label>
-              <input
-                type="text"
-                value={form.receiver_name}
-                onChange={(e) =>
-                  setForm({ ...form, receiver_name: e.target.value })
-                }
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
-                placeholder="ชื่อผู้รับ"
-              />
-            </div>
-          </div>
+        {/* Sender / Receiver */}
+        <div className="grid grid-cols-2 gap-3">
+          <Input
+            label="ผู้ส่ง"
+            type="text"
+            value={form.sender_name}
+            onChange={(e) => updateField("sender_name", e.target.value)}
+            placeholder="ชื่อผู้ส่ง"
+          />
+          <Input
+            label="ผู้รับ"
+            type="text"
+            value={form.receiver_name}
+            onChange={(e) => updateField("receiver_name", e.target.value)}
+            placeholder="ชื่อผู้รับ"
+          />
+        </div>
 
-          {/* Bank/Wallet */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-600 mb-1.5">
-              ธนาคาร / Wallet
-            </label>
-            <input
-              type="text"
-              value={form.bank_or_wallet}
-              onChange={(e) =>
-                setForm({ ...form, bank_or_wallet: e.target.value })
-              }
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
-              placeholder="เช่น KBANK, SCB, PayPal"
-            />
-          </div>
+        {/* Bank/Wallet */}
+        <Input
+          label="ธนาคาร / Wallet"
+          type="text"
+          value={form.bank_or_wallet}
+          onChange={(e) => updateField("bank_or_wallet", e.target.value)}
+          placeholder="เช่น KBANK, SCB, PayPal"
+        />
 
-          {/* Note */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-600 mb-1.5">
-              หมายเหตุ
-            </label>
-            <textarea
-              value={form.note}
-              onChange={(e) => setForm({ ...form, note: e.target.value })}
-              rows={2}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
-              placeholder="รายละเอียดเพิ่มเติม..."
-            />
-          </div>
+        {/* Note */}
+        <Textarea
+          label="หมายเหตุ"
+          value={form.note}
+          onChange={(e) => updateField("note", e.target.value)}
+          rows={2}
+          placeholder="รายละเอียดเพิ่มเติม..."
+        />
 
-          {/* Actions */}
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition-colors"
-            >
-              ยกเลิก
-            </button>
-            <button
-              type="submit"
-              className="flex-1 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
-            >
-              บันทึก
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        {/* Actions */}
+        <div className="flex gap-3 pt-2">
+          <Button type="button" variant="secondary" className="flex-1" onClick={handleClose}>
+            ยกเลิก
+          </Button>
+          <Button type="submit" className="flex-1" isLoading={saving}>
+            {saving ? "กำลังบันทึก..." : "บันทึก"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }

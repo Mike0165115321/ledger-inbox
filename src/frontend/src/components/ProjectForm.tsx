@@ -1,6 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { Play, CheckCircle2, Archive } from "lucide-react";
+import Modal from "@/components/ui/Modal";
+import Input, { Select } from "@/components/ui/Input";
+import Button from "@/components/ui/Button";
 
 interface ProjectFormProps {
   isOpen: boolean;
@@ -23,9 +27,9 @@ interface ProjectFormProps {
 }
 
 const STATUSES = [
-  { value: "active", label: "🟢 Active" },
-  { value: "completed", label: "✅ Completed" },
-  { value: "archived", label: "📦 Archived" },
+  { value: "active", label: "Active" },
+  { value: "completed", label: "Completed" },
+  { value: "archived", label: "Archived" },
 ];
 
 export default function ProjectForm({
@@ -42,131 +46,145 @@ export default function ProjectForm({
     started_at: initial?.started_at || new Date().toISOString().slice(0, 10),
     ended_at: initial?.ended_at || "",
   });
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
-  if (!isOpen) return null;
+  // Reset form when initial changes
+  useEffect(() => {
+    if (isOpen) {
+      setForm({
+        name: initial?.name || "",
+        client_name: initial?.client_name || "",
+        status: initial?.status || "active",
+        started_at: initial?.started_at || new Date().toISOString().slice(0, 10),
+        ended_at: initial?.ended_at || "",
+      });
+      setDirty(false);
+    }
+  }, [initial, isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave(form);
+  const updateField = useCallback(
+    <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
+      setForm((prev) => ({ ...prev, [key]: value }));
+      setDirty(true);
+    },
+    []
+  );
+
+  const handleClose = () => {
+    if (dirty) {
+      if (
+        !confirm("คุณมีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก ต้องการปิดหรือไม่?")
+      )
+        return;
+    }
     onClose();
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await onSave(form);
+      setDirty(false);
+      onClose();
+    } catch {
+      // error handled upstream
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
-        <div className="px-6 py-4 border-b border-zinc-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-zinc-800">{title}</h2>
-          <button
-            onClick={onClose}
-            className="text-zinc-400 hover:text-zinc-600 text-xl leading-none"
-          >
-            ✕
-          </button>
+    <Modal isOpen={isOpen} onClose={handleClose} title={title} maxWidth="sm">
+      <form
+        onSubmit={handleSubmit}
+        onKeyDown={handleKeyDown}
+        className="px-6 py-4 space-y-4"
+      >
+        {/* Name */}
+        <Input
+          label="ชื่อโปรเจกต์"
+          type="text"
+          required
+          value={form.name}
+          onChange={(e) => updateField("name", e.target.value)}
+          placeholder="เช่น พัฒนาเว็บไซต์ ABC"
+        />
+
+        {/* Client */}
+        <Input
+          label="ลูกค้า"
+          type="text"
+          value={form.client_name}
+          onChange={(e) => updateField("client_name", e.target.value)}
+          placeholder="ชื่อลูกค้า (ไม่บังคับ)"
+        />
+
+        {/* Status */}
+        <div>
+          <label className="block text-sm font-medium text-text mb-1.5">
+            สถานะ
+          </label>
+          <div className="flex gap-1.5">
+            {STATUSES.map((s) => (
+              <button
+                key={s.value}
+                type="button"
+                onClick={() => updateField("status", s.value)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  form.status === s.value
+                    ? "bg-accent text-text-on-accent"
+                    : "bg-surface-hover text-text-muted hover:bg-surface-hover"
+                }`}
+              >
+                {s.value === "active" && <Play className="w-3.5 h-3.5" />}
+                {s.value === "completed" && <CheckCircle2 className="w-3.5 h-3.5" />}
+                {s.value === "archived" && <Archive className="w-3.5 h-3.5" />}
+                {s.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
-          {/* Name */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-600 mb-1.5">
-              ชื่อโปรเจกต์ <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
-              placeholder="เช่น พัฒนาเว็บไซต์ ABC"
-            />
-          </div>
+        {/* Dates */}
+        <div className="grid grid-cols-2 gap-3">
+          <Input
+            label="วันที่เริ่ม"
+            type="date"
+            value={form.started_at}
+            onChange={(e) => updateField("started_at", e.target.value)}
+          />
+          <Input
+            label="วันที่สิ้นสุด"
+            type="date"
+            value={form.ended_at}
+            onChange={(e) => updateField("ended_at", e.target.value)}
+          />
+        </div>
 
-          {/* Client */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-600 mb-1.5">
-              ลูกค้า
-            </label>
-            <input
-              type="text"
-              value={form.client_name}
-              onChange={(e) =>
-                setForm({ ...form, client_name: e.target.value })
-              }
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
-              placeholder="ชื่อลูกค้า (ไม่บังคับ)"
-            />
-          </div>
-
-          {/* Status */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-600 mb-1.5">
-              สถานะ
-            </label>
-            <div className="flex gap-1.5">
-              {STATUSES.map((s) => (
-                <button
-                  key={s.value}
-                  type="button"
-                  onClick={() => setForm({ ...form, status: s.value })}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    form.status === s.value
-                      ? "bg-zinc-900 text-white"
-                      : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
-                  }`}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Dates */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-zinc-600 mb-1.5">
-                วันที่เริ่ม
-              </label>
-              <input
-                type="date"
-                value={form.started_at}
-                onChange={(e) =>
-                  setForm({ ...form, started_at: e.target.value })
-                }
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-zinc-600 mb-1.5">
-                วันที่สิ้นสุด
-              </label>
-              <input
-                type="date"
-                value={form.ended_at}
-                onChange={(e) =>
-                  setForm({ ...form, ended_at: e.target.value })
-                }
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
-              />
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition-colors"
-            >
-              ยกเลิก
-            </button>
-            <button
-              type="submit"
-              className="flex-1 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
-            >
-              บันทึก
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        {/* Actions */}
+        <div className="flex gap-3 pt-2">
+          <Button
+            type="button"
+            variant="secondary"
+            className="flex-1"
+            onClick={handleClose}
+          >
+            ยกเลิก
+          </Button>
+          <Button type="submit" className="flex-1" isLoading={saving}>
+            {saving ? "กำลังบันทึก..." : "บันทึก"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }

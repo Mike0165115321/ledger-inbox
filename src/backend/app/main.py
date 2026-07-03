@@ -48,6 +48,19 @@ app.include_router(categories.router)
 app.include_router(health.router)
 app.include_router(dashboard.export_router)
 
+# ── MCP Integration ──────────────────────────────────────────────
+try:
+    from fastapi_mcp import FastApiMCP
+
+    mcp = FastApiMCP(
+        app,
+        name="Ledger Inbox MCP",
+        description="Evidence-first Accounting — query & manage transactions, projects, tax calculations. Thai personal finance tools for freelancers.",
+    )
+    mcp.mount()  # → http://localhost:8000/mcp
+except ImportError:
+    print("[MCP] fastapi-mcp not installed — MCP server disabled. pip install fastapi-mcp")
+
 
 
 @app.get("/api/health")

@@ -1,7 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {
+  Loader2,
+  AlertTriangle,
+  XCircle,
+  PauseCircle,
+  CheckCircle2,
+  Clock,
+  Activity,
+} from "lucide-react";
 import { api, QueueStatus } from "@/lib/api";
+import Badge from "@/components/ui/Badge";
 
 interface Props {
   onQueueEmpty?: () => void;
@@ -9,7 +19,7 @@ interface Props {
 
 export default function QueueStatusBar({ onQueueEmpty }: Props) {
   const [status, setStatus] = useState<QueueStatus | null>(null);
-  const [lastTick, setLastTick] = useState<number>(0); // countdown วินาทีตั้งแต่ request ล่าสุด
+  const [lastTick, setLastTick] = useState<number>(0);
   const prevQueueSize = useRef(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -29,14 +39,13 @@ export default function QueueStatusBar({ onQueueEmpty }: Props) {
       }
       prevQueueSize.current = s.queue_size;
     } catch {
-      // backend ยังไม่พร้อม
+      // backend not ready
     }
   };
 
   useEffect(() => {
     fetchStatus();
     intervalRef.current = setInterval(fetchStatus, 3000);
-    // tick counter ทุก 1 วิ (เพื่อ countdown delay)
     tickRef.current = setInterval(() => setLastTick((t) => t + 1), 1000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -46,55 +55,68 @@ export default function QueueStatusBar({ onQueueEmpty }: Props) {
 
   if (!status) {
     return (
-      <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 animate-pulse">
-        <div className="h-4 bg-zinc-200 rounded w-1/3 mb-3" />
-        <div className="h-2 bg-zinc-200 rounded w-full" />
+      <div className="rounded-xl border border-border bg-surface-alt p-4 animate-pulse">
+        <div className="h-4 bg-skeleton rounded w-1/3 mb-3" />
+        <div className="h-2 bg-skeleton rounded w-full" />
       </div>
     );
   }
 
   const {
-    queue_size, is_processing, rate_limited, rate_limit_reset_at,
-    requests_today, rpm_used, tpm_used,
-    rpm_limit, tpm_limit, rpd_limit,
-    last_processed_at, last_error,
+    queue_size,
+    is_processing,
+    rate_limited,
+    requests_today,
+    rpm_used,
+    tpm_used,
+    rpm_limit,
+    tpm_limit,
+    rpd_limit,
+    last_error,
   } = status;
 
-  const DELAY_SEC = 5;
-  const delayPct = Math.min((lastTick / DELAY_SEC) * 100, 100);
-
-  // สี dot สถานะ
-  const dotColor =
-    rate_limited ? "bg-amber-400 animate-pulse"
-    : is_processing ? "bg-blue-500 animate-pulse"
-    : "bg-emerald-400";
-
-  const statusLabel =
-    rate_limited ? "Rate Limited — รอ backoff"
-    : is_processing ? "กำลังส่ง Gemini..."
-    : queue_size > 0 ? `รอในคิว ${queue_size} รูป`
-    : "พร้อม";
-
-  const statusColor =
-    rate_limited ? "text-amber-700"
-    : is_processing ? "text-blue-700"
-    : "text-emerald-700";
+  // Status config
+  const stateInfo = rate_limited
+    ? {
+        color: "border-border bg-warning-bg",
+        dot: "bg-amber-400 animate-pulse",
+        label: "Rate Limited — รอ backoff",
+        labelColor: "text-warning",
+        icon: <PauseCircle className="w-4 h-4 text-warning" />,
+      }
+    : is_processing
+    ? {
+        color: "border-border bg-info-bg",
+        dot: "bg-blue-500 animate-pulse",
+        label: "กำลังส่ง Gemini...",
+        labelColor: "text-info",
+        icon: <Loader2 className="w-4 h-4 text-info animate-spin" />,
+      }
+    : queue_size > 0
+    ? {
+        color: "border-border bg-info-bg",
+        dot: "bg-blue-400",
+        label: `รอในคิว ${queue_size} รูป`,
+        labelColor: "text-info",
+        icon: <Clock className="w-4 h-4 text-info" />,
+      }
+    : {
+        color: "border-border bg-surface",
+        dot: "bg-emerald-400",
+        label: "พร้อม",
+        labelColor: "text-success",
+        icon: <CheckCircle2 className="w-4 h-4 text-success" />,
+      };
 
   return (
-    <div className={`rounded-xl border p-4 space-y-3 transition-colors ${
-      rate_limited
-        ? "border-amber-200 bg-amber-50"
-        : is_processing || queue_size > 0
-        ? "border-blue-200 bg-blue-50/50"
-        : "border-zinc-200 bg-white"
-    }`}>
-
-      {/* ─── Header row ──────────────────────────────────────────────── */}
+    <div className={`rounded-xl border p-4 space-y-3 transition-colors ${stateInfo.color}`}>
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full shrink-0 ${dotColor}`} />
-          <span className={`text-sm font-medium ${statusColor}`}>
-            {statusLabel}
+          <span className={`w-2 h-2 rounded-full shrink-0 ${stateInfo.dot}`} />
+          <span className={`text-sm font-medium flex items-center gap-1.5 ${stateInfo.labelColor}`}>
+            {stateInfo.icon}
+            {stateInfo.label}
           </span>
           {(is_processing || queue_size > 0) && !rate_limited && (
             <span className="flex gap-0.5 ml-1">
@@ -108,18 +130,15 @@ export default function QueueStatusBar({ onQueueEmpty }: Props) {
             </span>
           )}
         </div>
-        {/* Queue badge */}
         {queue_size > 0 && (
-          <span className="text-xs font-mono bg-zinc-900 text-white rounded-full px-2 py-0.5">
+          <Badge variant="default" size="sm">
             คิว {queue_size} รูป
-          </span>
+          </Badge>
         )}
       </div>
 
-      {/* ─── Metrics grid — RPM / TPM / RPD ──────────────────────────────── */}
+      {/* Metrics */}
       <div className="grid grid-cols-3 gap-3">
-
-        {/* RPM */}
         <Metric
           label="RPM"
           used={rpm_used}
@@ -128,18 +147,14 @@ export default function QueueStatusBar({ onQueueEmpty }: Props) {
           color={rpm_used / rpm_limit >= 0.87 ? "red" : rpm_used / rpm_limit >= 0.6 ? "amber" : "emerald"}
           sublabel="ใน 60 วินาที"
         />
-
-        {/* TPM — ข้อมูลจริงจาก usageMetadata */}
         <Metric
           label="TPM"
           used={tpm_used}
           limit={tpm_limit}
-          formatVal={(v) => v >= 1000 ? `${(v / 1000).toFixed(1)}K` : String(v)}
+          formatVal={(v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}K` : String(v))}
           color={tpm_used / tpm_limit >= 0.8 ? "amber" : "zinc"}
           sublabel="โทเคน/นาที"
         />
-
-        {/* RPD */}
         <Metric
           label="RPD"
           used={requests_today}
@@ -150,27 +165,24 @@ export default function QueueStatusBar({ onQueueEmpty }: Props) {
         />
       </div>
 
-      {/* ─── Alert rows ───────────────────────────────────────────────── */}
+      {/* Alerts */}
       {rate_limited && (
-        <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-100 rounded-lg px-3 py-2">
-          <span>⏸️</span>
-          <span>
-            โดน 429 — รอ 15 วินาทีแล้วส่งต่ออัตโนมัติ
-            {rate_limit_reset_at && <> (ประมาณ ~15s)</>}
-          </span>
+        <div className="flex items-center gap-2 text-xs text-warning bg-warning-bg rounded-lg px-3 py-2">
+          <PauseCircle className="w-4 h-4 shrink-0" />
+          <span>โดน 429 — รอ 15 วินาทีแล้วส่งต่ออัตโนมัติ</span>
         </div>
       )}
 
-      {(requests_today / rpd_limit) >= 0.8 && !rate_limited && (
-        <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
-          <span>⚠️</span>
+      {requests_today / rpd_limit >= 0.8 && !rate_limited && (
+        <div className="flex items-center gap-2 text-xs text-warning bg-warning-bg rounded-lg px-3 py-2">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
           <span>ใกล้ถึง limit รายวัน ({requests_today}/{rpd_limit}) — เหลือ {rpd_limit - requests_today} request</span>
         </div>
       )}
 
       {last_error && !rate_limited && (
-        <div className="flex items-start gap-2 text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">
-          <span className="shrink-0">❌</span>
+        <div className="flex items-start gap-2 text-xs text-danger bg-danger-bg rounded-lg px-3 py-2">
+          <XCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <span className="break-all">{last_error}</span>
         </div>
       )}
@@ -178,18 +190,23 @@ export default function QueueStatusBar({ onQueueEmpty }: Props) {
   );
 }
 
-// ── Metric column component ───────────────────────────────────────────────────
+// ── Metric component ──────────────────────────────────────────
 
 const BAR_COLORS = {
-  red:     "bg-red-500",
-  amber:   "bg-amber-400",
-  emerald: "bg-emerald-500",
-  blue:    "bg-blue-400",
-  zinc:    "bg-zinc-400",
+  red: "bg-danger",
+  amber: "bg-warning",
+  emerald: "bg-success",
+  blue: "bg-info",
+  zinc: "bg-text-muted",
 };
 
 function Metric({
-  label, used, limit, formatVal, color, sublabel,
+  label,
+  used,
+  limit,
+  formatVal,
+  color,
+  sublabel,
 }: {
   label: string;
   used: number;
@@ -200,36 +217,33 @@ function Metric({
 }) {
   const pct = Math.min(limit > 0 ? (used / limit) * 100 : 0, 100);
   const textColor =
-    color === "red"     ? "text-red-600"
-    : color === "amber" ? "text-amber-600"
-    : color === "emerald" ? "text-emerald-700"
-    : "text-zinc-700";
+    color === "red"
+      ? "text-danger"
+      : color === "amber"
+      ? "text-warning"
+      : color === "emerald"
+      ? "text-success"
+      : "text-text";
 
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-zinc-500 font-medium">{label}</span>
+        <span className="text-xs text-text-muted font-medium flex items-center gap-1">
+          <Activity className="w-3 h-3" />
+          {label}
+        </span>
         <span className={`text-xs font-mono font-semibold ${textColor}`}>
           {formatVal(used)}
-          <span className="text-zinc-400">/{formatVal(limit)}</span>
+          <span className="text-text-subtle">/{formatVal(limit)}</span>
         </span>
       </div>
-      <div className="h-1.5 bg-zinc-200 rounded-full overflow-hidden">
+      <div className="h-1.5 bg-surface-muted rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-500 ${BAR_COLORS[color]}`}
           style={{ width: `${pct}%` }}
         />
       </div>
-      <p className="text-[10px] text-zinc-400">{sublabel}</p>
+      <p className="text-[10px] text-text-subtle">{sublabel}</p>
     </div>
-  );
-}
-
-function Spinner({ className = "" }) {
-  return (
-    <svg className={`w-4 h-4 animate-spin ${className}`} fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-    </svg>
   );
 }

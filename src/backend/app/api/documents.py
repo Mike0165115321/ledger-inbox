@@ -2,6 +2,7 @@
 POST   /api/documents/upload       — อัปโหลดสลิป 1 ไฟล์ → เข้า queue
 POST   /api/documents/upload/batch — อัปโหลดหลายไฟล์พร้อมกัน → เข้า queue ทั้งหมด
 GET    /api/documents              — รายการเอกสารทั้งหมด
+GET    /api/documents/{id}/file    — serve รูปไฟล์สลิป
 DELETE /api/documents/{id}         — ลบเอกสาร
 """
 
@@ -11,6 +12,7 @@ from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from ..db.database import get_db, SessionLocal
@@ -113,6 +115,20 @@ async def list_documents(db: Session = Depends(get_db)):
         .order_by(Document.uploaded_at.desc())
         .all()
     )
+
+
+@router.get("/{doc_id}/file")
+async def get_document_file(doc_id: str, db: Session = Depends(get_db)):
+    """Serve รูปภาพหรือไฟล์ของเอกสาร"""
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="ไม่พบเอกสาร")
+    if not os.path.exists(doc.file_path):
+        raise HTTPException(status_code=404, detail="ไม่พบไฟล์")
+
+    media_map = {"jpg": "image/jpeg", "png": "image/png", "pdf": "application/pdf"}
+    media_type = media_map.get(doc.file_type, "application/octet-stream")
+    return FileResponse(doc.file_path, media_type=media_type, filename=doc.file_name)
 
 
 @router.delete("/{doc_id}")

@@ -1,8 +1,33 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Filter,
+  AlertTriangle,
+  FileEdit,
+  ChevronLeft,
+  ChevronRight,
+  TrendingUp,
+  TrendingDown,
+  ArrowLeftRight,
+  User,
+  HelpCircle,
+  CheckCircle2,
+  XCircle,
+  RefreshCw,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react";
 import { api, Transaction, Category, Project } from "@/lib/api";
 import TransactionForm from "@/components/TransactionForm";
+import Card from "@/components/ui/Card";
+import Badge from "@/components/ui/Badge";
+import Button from "@/components/ui/Button";
+import { Skeleton, SkeletonTableRow } from "@/components/ui/Skeleton";
 
 function formatMoney(n: number): string {
   return new Intl.NumberFormat("th-TH", {
@@ -20,21 +45,30 @@ function formatDate(d: string | null): string {
   });
 }
 
-const TYPE_LABELS: Record<string, string> = {
-  income: "💰 รายรับ",
-  expense: "💸 รายจ่าย",
-  transfer: "↔️ โอน",
-  personal: "👤 ส่วนตัว",
-  unknown: "❓ ไม่แน่ใจ",
+const TYPE_CONFIG: Record<
+  string,
+  { label: string; variant: "success" | "danger" | "info" | "default" | "warning"; icon: React.ReactNode }
+> = {
+  income: { label: "รายรับ", variant: "success", icon: <TrendingUp className="w-3.5 h-3.5" /> },
+  expense: { label: "รายจ่าย", variant: "danger", icon: <TrendingDown className="w-3.5 h-3.5" /> },
+  transfer: { label: "โอน", variant: "info", icon: <ArrowLeftRight className="w-3.5 h-3.5" /> },
+  personal: { label: "ส่วนตัว", variant: "default", icon: <User className="w-3.5 h-3.5" /> },
+  unknown: { label: "ไม่แน่ใจ", variant: "warning", icon: <HelpCircle className="w-3.5 h-3.5" /> },
 };
 
-const TYPE_COLORS: Record<string, string> = {
-  income: "text-emerald-600",
-  expense: "text-red-500",
-  transfer: "text-blue-600",
-  personal: "text-zinc-500",
-  unknown: "text-amber-500",
+const REVIEW_BADGE: Record<
+  string,
+  { label: string; variant: "warning" | "success" | "danger" }
+> = {
+  pending: { label: "รอตรวจสอบ", variant: "warning" },
+  confirmed: { label: "ยืนยันแล้ว", variant: "success" },
+  rejected: { label: "ปฏิเสธ", variant: "danger" },
 };
+
+const PAGE_SIZE = 15;
+
+type SortField = "date" | "amount" | "type";
+type SortDir = "asc" | "desc";
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -46,6 +80,13 @@ export default function TransactionsPage() {
   // Filters
   const [filterType, setFilterType] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
+
+  // Pagination
+  const [page, setPage] = useState(1);
+
+  // Sorting
+  const [sortField, setSortField] = useState<SortField>("date");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   // Modal
   const [showForm, setShowForm] = useState(false);
@@ -74,32 +115,17 @@ export default function TransactionsPage() {
     fetchData();
   }, [fetchData]);
 
-  const handleCreate = async (data: {
-    type: string;
-    category: string;
-    amount: number;
-    transaction_datetime: string;
-    note: string;
-    project_id: string;
-    sender_name: string;
-    receiver_name: string;
-    bank_or_wallet: string;
-  }) => {
+  // Reset page on filter change
+  useEffect(() => {
+    setPage(1);
+  }, [filterType, filterMonth]);
+
+  const handleCreate = async (data: any) => {
     await api.createTransaction(data);
     fetchData();
   };
 
-  const handleUpdate = async (data: {
-    type: string;
-    category: string;
-    amount: number;
-    transaction_datetime: string;
-    note: string;
-    project_id: string;
-    sender_name: string;
-    receiver_name: string;
-    bank_or_wallet: string;
-  }) => {
+  const handleUpdate = async (data: any) => {
     if (!editTx) return;
     await api.updateTransaction(editTx.id, data);
     setEditTx(null);
@@ -112,171 +138,304 @@ export default function TransactionsPage() {
     fetchData();
   };
 
+  // Sorting
+  const getSortValue = (tx: Transaction, field: SortField): number | string => {
+    if (field === "date") return tx.transaction_datetime || "";
+    if (field === "amount") return tx.amount;
+    if (field === "type") return tx.type;
+    return "";
+  };
+
+  const sortedTxs = [...transactions].sort((a, b) => {
+    const va = getSortValue(a, sortField);
+    const vb = getSortValue(b, sortField);
+    const cmp = typeof va === "string" ? va.localeCompare(vb as string) : (va as number) - (vb as number);
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(sortedTxs.length / PAGE_SIZE));
+  const paginatedTxs = sortedTxs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir(field === "amount" ? "desc" : "desc");
+    }
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-40" />;
+    return sortDir === "asc" ? (
+      <ArrowUp className="w-3 h-3 ml-1" />
+    ) : (
+      <ArrowDown className="w-3 h-3 ml-1" />
+    );
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900">รายการ</h1>
-          <p className="text-zinc-500 mt-1">รายรับ/รายจ่ายทั้งหมด</p>
+          <h1 className="text-2xl font-bold text-text">
+            รายการ
+          </h1>
+          <p className="text-text-muted mt-1">
+            รายรับ/รายจ่ายทั้งหมด
+          </p>
         </div>
-        <button
+        <Button
           onClick={() => {
             setEditTx(null);
             setShowForm(true);
           }}
-          className="bg-zinc-900 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors"
         >
-          + เพิ่มรายการ
-        </button>
+          <Plus className="w-4 h-4" />
+          เพิ่มรายการ
+        </Button>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 flex-wrap">
-        <select
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-          className="rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-        >
-          <option value="">ทั้งหมด</option>
-          <option value="income">รายรับ</option>
-          <option value="expense">รายจ่าย</option>
-          <option value="transfer">โอน</option>
-          <option value="personal">ส่วนตัว</option>
-          <option value="unknown">ไม่แน่ใจ</option>
-        </select>
+      <div className="flex gap-3 flex-wrap items-center">
+        <div className="flex items-center gap-1.5">
+          <Filter className="w-4 h-4 text-text-subtle" />
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="rounded-lg border border-border px-3 py-2 text-sm bg-surface text-text focus:outline-none focus:ring-2 focus:ring-accent"
+          >
+            <option value="">ทั้งหมด</option>
+            <option value="income">รายรับ</option>
+            <option value="expense">รายจ่าย</option>
+            <option value="transfer">โอน</option>
+            <option value="personal">ส่วนตัว</option>
+            <option value="unknown">ไม่แน่ใจ</option>
+          </select>
+        </div>
 
         <input
           type="month"
           value={filterMonth}
           onChange={(e) => setFilterMonth(e.target.value)}
-          className="rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+          className="rounded-lg border border-border px-3 py-2 text-sm bg-surface text-text focus:outline-none focus:ring-2 focus:ring-accent"
         />
       </div>
 
       {/* Content */}
       {loading ? (
-        <p className="text-zinc-400 text-center py-20">กำลังโหลด...</p>
+        <Card padding="none">
+          <div className="p-4 border-b border-border-light">
+            <Skeleton className="h-4 w-32" />
+          </div>
+          <div>
+            <SkeletonTableRow />
+            <SkeletonTableRow />
+            <SkeletonTableRow />
+            <SkeletonTableRow />
+            <SkeletonTableRow />
+            <SkeletonTableRow />
+          </div>
+        </Card>
       ) : error ? (
-        <p className="text-red-500 text-center py-20">⚠️ {error}</p>
+        <Card className="text-center py-16">
+          <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-danger" />
+          <p className="text-danger">{error}</p>
+        </Card>
       ) : transactions.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-xl border border-zinc-200">
-          <p className="text-4xl mb-4">📝</p>
-          <h3 className="text-lg font-semibold text-zinc-700">
+        <Card className="text-center py-16">
+          <FileEdit className="w-16 h-16 mx-auto mb-4 text-text-subtle" />
+          <h3 className="text-lg font-semibold text-text mb-2">
             ยังไม่มีรายการ
           </h3>
-          <p className="text-zinc-400 mt-1">
-            คลิก &quot;+ เพิ่มรายการ&quot; เพื่อเริ่มต้น
+          <p className="text-text-muted mb-6">
+            คลิก &quot;เพิ่มรายการ&quot; เพื่อเริ่มบันทึกข้อมูลทางการเงินของคุณ
           </p>
-        </div>
+          <Button
+            onClick={() => {
+              setEditTx(null);
+              setShowForm(true);
+            }}
+          >
+            <Plus className="w-4 h-4" />
+            เพิ่มรายการ
+          </Button>
+        </Card>
       ) : (
-        <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-zinc-50 border-b border-zinc-200">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-zinc-500">
-                  วันที่
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-zinc-500">
-                  ประเภท
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-zinc-500">
-                  หมวดหมู่
-                </th>
-                <th className="text-right px-4 py-3 font-medium text-zinc-500">
-                  จำนวนเงิน
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-zinc-500">
-                  หมายเหตุ
-                </th>
-                <th className="text-center px-4 py-3 font-medium text-zinc-500">
-                  สถานะ
-                </th>
-                <th className="text-center px-4 py-3 font-medium text-zinc-500">
-                  จัดการ
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map((tx) => (
-                <tr
-                  key={tx.id}
-                  className="border-b border-zinc-100 hover:bg-zinc-50"
-                >
-                  <td className="px-4 py-3 text-zinc-600">
-                    {formatDate(tx.transaction_datetime)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs font-medium ${TYPE_COLORS[tx.type]}`}>
-                      {TYPE_LABELS[tx.type] || tx.type}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-zinc-600">
-                    {tx.category || "—"}
-                  </td>
-                  <td
-                    className={`px-4 py-3 text-right font-medium ${
-                      tx.type === "income"
-                        ? "text-emerald-600"
-                        : tx.type === "expense"
-                        ? "text-red-500"
-                        : "text-zinc-700"
-                    }`}
-                  >
-                    {tx.type === "income" ? "+" : tx.type === "expense" ? "-" : ""}
-                    {formatMoney(tx.amount)}
-                  </td>
-                  <td className="px-4 py-3 text-zinc-500 max-w-[150px] truncate">
-                    {tx.note || "—"}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      {tx.review_status === "pending" && (
-                        <span className="text-xs px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded" title="รอตรวจสอบ">
-                          🟡 review
-                        </span>
-                      )}
-                      {tx.review_status === "confirmed" && (
-                        <span className="text-xs px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded" title="ยืนยันแล้ว">
-                          ✅
-                        </span>
-                      )}
-                      {tx.review_status === "rejected" && (
-                        <span className="text-xs px-1.5 py-0.5 bg-red-50 text-red-600 rounded" title="ปฏิเสธ">
-                          ❌
-                        </span>
-                      )}
-                      {tx.duplicate_status !== "unique" && (
-                        <span className="text-xs px-1.5 py-0.5 bg-orange-50 text-orange-600 rounded" title={tx.duplicate_status}>
-                          🔄
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <button
-                      onClick={() => {
-                        setEditTx(tx);
-                        setShowForm(true);
-                      }}
-                      className="text-zinc-400 hover:text-blue-600 mr-2"
-                      title="แก้ไข"
+        <>
+          <Card padding="none" className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-surface-alt border-b border-border sticky top-0">
+                  <tr>
+                    <th
+                      className="text-left px-4 py-3 font-medium text-text-muted cursor-pointer select-none hover:text-text"
+                      onClick={() => toggleSort("date")}
                     >
-                      ✏️
-                    </button>
-                    <button
-                      onClick={() => handleDelete(tx.id)}
-                      className="text-zinc-400 hover:text-red-500"
-                      title="ลบ"
+                      <div className="flex items-center">
+                        วันที่
+                        <SortIcon field="date" />
+                      </div>
+                    </th>
+                    <th
+                      className="text-left px-4 py-3 font-medium text-text-muted cursor-pointer select-none hover:text-text"
+                      onClick={() => toggleSort("type")}
                     >
-                      🗑️
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      <div className="flex items-center">
+                        ประเภท
+                        <SortIcon field="type" />
+                      </div>
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-text-muted">
+                      หมวดหมู่
+                    </th>
+                    <th
+                      className="text-right px-4 py-3 font-medium text-text-muted cursor-pointer select-none hover:text-text"
+                      onClick={() => toggleSort("amount")}
+                    >
+                      <div className="flex items-center justify-end">
+                        จำนวนเงิน
+                        <SortIcon field="amount" />
+                      </div>
+                    </th>
+                    <th className="text-left px-4 py-3 font-medium text-text-muted">
+                      หมายเหตุ
+                    </th>
+                    <th className="text-center px-4 py-3 font-medium text-text-muted">
+                      สถานะ
+                    </th>
+                    <th className="text-center px-4 py-3 font-medium text-text-muted">
+                      จัดการ
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedTxs.map((tx) => {
+                    const typeCfg = TYPE_CONFIG[tx.type] || TYPE_CONFIG.unknown;
+                    return (
+                      <tr
+                        key={tx.id}
+                        className="border-b border-border-light hover:bg-surface-hover transition-colors"
+                      >
+                        <td className="px-4 py-3 text-text whitespace-nowrap">
+                          {formatDate(tx.transaction_datetime)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant={typeCfg.variant} size="sm">
+                            <span className="flex items-center gap-1">
+                              {typeCfg.icon}
+                              {typeCfg.label}
+                            </span>
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-text">
+                          {tx.category || "—"}
+                        </td>
+                        <td
+                          className={`px-4 py-3 text-right font-medium tabular-nums ${
+                            tx.type === "income"
+                              ? "text-success"
+                              : tx.type === "expense"
+                              ? "text-danger"
+                              : "text-text"
+                          }`}
+                        >
+                          {tx.type === "income"
+                            ? "+"
+                            : tx.type === "expense"
+                            ? "-"
+                            : ""}
+                          {formatMoney(tx.amount)}
+                        </td>
+                        <td className="px-4 py-3 text-text-muted max-w-[150px] truncate">
+                          {tx.note || "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {tx.review_status === "pending" && (
+                              <Badge variant="warning" size="sm">
+                                รอตรวจสอบ
+                              </Badge>
+                            )}
+                            {tx.review_status === "confirmed" && (
+                              <Badge variant="success" size="sm">
+                                <CheckCircle2 className="w-3 h-3" />
+                                ยืนยันแล้ว
+                              </Badge>
+                            )}
+                            {tx.review_status === "rejected" && (
+                              <Badge variant="danger" size="sm">
+                                <XCircle className="w-3 h-3" />
+                                ปฏิเสธ
+                              </Badge>
+                            )}
+                            {tx.duplicate_status !== "unique" && (
+                              <Badge variant="warning" size="sm">
+                                <RefreshCw className="w-3 h-3" />
+                                {tx.duplicate_status === "duplicate"
+                                  ? "ซ้ำ"
+                                  : "อาจซ้ำ"}
+                              </Badge>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => {
+                                setEditTx(tx);
+                                setShowForm(true);
+                              }}
+                              className="p-1.5 text-text-subtle hover:text-info hover:bg-info-bg rounded-lg transition-colors"
+                              title="แก้ไข"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(tx.id)}
+                              className="p-1.5 text-text-subtle hover:text-danger hover:bg-danger-bg rounded-lg transition-colors"
+                              title="ลบ"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          {/* Pagination */}
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-text-muted">
+              หน้า {page} จาก {totalPages} · {transactions.length} รายการ
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                <ChevronLeft className="w-4 h-4" />
+                ก่อนหน้า
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                ถัดไป
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Form Modal */}

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "ledger-inbox": {
+      "type": "streamable-http",
+      "url": "http://localhost:8000/mcp",
+      "description": "Ledger Inbox — Evidence-first Accounting MCP Server. Query transactions, projects, tax calculations, and dashboard summaries for Thai freelancers."
+    }
+  }
+}

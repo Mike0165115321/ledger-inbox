@@ -52,18 +52,6 @@
 
 ## 🎯 Agent Scopes
 
-### steward 🏆
-
-| ทำ | ไม่ทำ |
-|:--|:--|
-| ✅ Environment check (Node, Python, Ollama) | ❌ เขียน business logic |
-| ✅ npm / pip / uv install dependencies | ❌ ออกแบบ UI |
-| ✅ Project scaffold + config files | ❌ Database schema design |
-| ✅ Git init / commit / push / PR | ❌ Slip Reader pipeline |
-| ✅ Research (API options, model perf) | ❌ Transaction classification |
-| ✅ Agent coordination (AGENTS.md) | |
-| ✅ Token cost checking | |
-
 ### frontend.md
 
 | ทำ | ไม่ทำ |

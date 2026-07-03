@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import StatCard from "@/components/StatCard";
-import { api, DashboardSummary } from "@/lib/api";
+import { api, DashboardSummary, TaxSummary } from "@/lib/api";
 
 function formatMoney(n: number): string {
   return new Intl.NumberFormat("th-TH", {
@@ -15,13 +15,16 @@ function formatMoney(n: number): string {
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardSummary | null>(null);
+  const [taxData, setTaxData] = useState<TaxSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api
-      .getDashboardSummary()
-      .then(setData)
+    Promise.all([api.getDashboardSummary(), api.getTaxSummary()])
+      .then(([summary, tax]) => {
+        setData(summary);
+        setTaxData(tax);
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -173,6 +176,80 @@ export default function DashboardPage() {
               </div>
             </section>
           )}
+
+          {/* Tax Summary */}
+          {taxData && (
+            <section>
+              <h2 className="text-lg font-semibold text-zinc-800 mb-3">
+                สรุปภาษี {taxData.year}
+              </h2>
+              <div className="bg-white rounded-xl border border-zinc-200 p-5">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                  <div>
+                    <p className="text-xs text-zinc-400">รายได้ทั้งปี</p>
+                    <p className="text-lg font-semibold text-emerald-600">{formatMoney(taxData.total_income)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-zinc-400">รายจ่ายทั้งปี</p>
+                    <p className="text-lg font-semibold text-red-500">{formatMoney(taxData.total_expense)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-zinc-400">กำไรประมาณการ</p>
+                    <p className={`text-lg font-semibold ${taxData.estimated_profit >= 0 ? "text-blue-600" : "text-red-500"}`}>
+                      {formatMoney(taxData.estimated_profit)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-zinc-400">จำนวนรายการ</p>
+                    <p className="text-lg font-semibold text-zinc-700">{taxData.transaction_count}</p>
+                  </div>
+                </div>
+
+                {taxData.expense_categories.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-xs text-zinc-400 mb-2">รายจ่ายสูงสุดแยกตามหมวด</p>
+                    <div className="flex flex-wrap gap-2">
+                      {taxData.expense_categories.slice(0, 5).map((c) => (
+                        <span key={c.name} className="text-xs bg-zinc-100 text-zinc-600 px-2.5 py-1 rounded-full">
+                          {c.name}: {formatMoney(c.amount)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <p className="text-xs text-zinc-400 italic">{taxData.tax_bracket_note}</p>
+              </div>
+            </section>
+          )}
+
+          {/* Export */}
+          <section>
+            <h2 className="text-lg font-semibold text-zinc-800 mb-3">ส่งออก</h2>
+            <div className="flex gap-3 flex-wrap">
+              <a
+                href={api.exportTransactions("csv")}
+                className="px-4 py-2.5 bg-white border border-zinc-300 rounded-lg text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
+                download
+              >
+                📄 CSV (รายการทั้งหมด)
+              </a>
+              <a
+                href={api.exportTransactions("xlsx")}
+                className="px-4 py-2.5 bg-white border border-zinc-300 rounded-lg text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
+                download
+              >
+                📊 Excel (รายการทั้งหมด)
+              </a>
+              <a
+                href={api.exportTaxSummary()}
+                className="px-4 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
+                download
+              >
+                🧾 Tax Summary Excel
+              </a>
+            </div>
+          </section>
         </>
       )}
     </div>

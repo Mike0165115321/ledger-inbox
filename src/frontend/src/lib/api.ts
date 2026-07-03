@@ -105,6 +105,51 @@ export const api = {
     return res.json();
   },
 
+  processDocument: (id: string) =>
+    request<SlipProcessResponse>(`/api/documents/${id}/process`, {
+      method: "POST",
+    }),
+
+  retryEasySlip: (id: string) =>
+    request<SlipProcessResponse>(`/api/documents/${id}/retry-easyslip`, {
+      method: "POST",
+    }),
+
+  // ── Review ──
+  getReviewQueue: () =>
+    request<Transaction[]>(
+      "/api/transactions?review_status=pending"
+    ),
+
+  confirmTransaction: (id: string) =>
+    request<Transaction>(`/api/transactions/${id}/confirm`, {
+      method: "POST",
+    }),
+
+  rejectTransaction: (id: string) =>
+    request<{ message: string }>(`/api/transactions/${id}/reject`, {
+      method: "POST",
+    }),
+
+  // ── Health ──
+  getModelHealth: () => request<ModelHealth>("/api/health/model"),
+
+  // ── Tax & Export ──
+  getTaxSummary: (year?: number) =>
+    request<TaxSummary>(`/api/dashboard/tax-summary${year ? `?year=${year}` : ""}`),
+
+  exportTransactions: (format: "csv" | "xlsx", projectId?: string, year?: number) => {
+    const qs = new URLSearchParams({ format });
+    if (projectId) qs.set("project_id", projectId);
+    if (year) qs.set("year", String(year));
+    return `${API_BASE}/api/export/transactions?${qs.toString()}`;
+  },
+
+  exportTaxSummary: (year?: number) => {
+    const qs = year ? `?year=${year}` : "";
+    return `${API_BASE}/api/export/tax-summary${qs}`;
+  },
+
   // ── Categories ──
   getCategories: () => request<Category[]>("/api/categories"),
 };
@@ -166,6 +211,7 @@ export interface TransactionFormData {
   note?: string | null;
   project_id?: string | null;
   document_id?: string | null;
+  review_status?: string | null;
 }
 
 export interface Project {
@@ -212,4 +258,48 @@ export interface Category {
   name: string;
   type: string;
   created_at: string;
+}
+
+export interface SlipProcessResponse {
+  document_id: string;
+  transaction_id?: string | null;
+  processing_status: string;
+  extraction?: SlipExtraction | null;
+  review_status?: string | null;
+  error_message?: string | null;
+}
+
+export interface SlipExtraction {
+  amount: number | null;
+  currency: string;
+  transaction_datetime: string | null;
+  sender_name: string | null;
+  receiver_name: string | null;
+  bank_or_wallet: string | null;
+  reference_no: string | null;
+  note: string | null;
+  confidence: number;
+  warnings: string[];
+}
+
+export interface ModelHealth {
+  ollama_running: boolean;
+  primary_model: string;
+  primary_available: boolean;
+  fallback_model: string;
+  fallback_available: boolean;
+  ready: boolean;
+}
+
+export interface TaxSummary {
+  year: number;
+  total_income: number;
+  total_expense: number;
+  estimated_profit: number;
+  transaction_count: number;
+  income_count: number;
+  expense_count: number;
+  expense_categories: { name: string; amount: number }[];
+  monthly_breakdown: { month: string; income: number; expense: number }[];
+  tax_bracket_note: string;
 }

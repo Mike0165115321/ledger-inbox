@@ -190,6 +190,9 @@ export default function TransactionsPage() {
                   หมายเหตุ
                 </th>
                 <th className="text-center px-4 py-3 font-medium text-zinc-500">
+                  สถานะ
+                </th>
+                <th className="text-center px-4 py-3 font-medium text-zinc-500">
                   จัดการ
                 </th>
               </tr>
@@ -223,8 +226,32 @@ export default function TransactionsPage() {
                     {tx.type === "income" ? "+" : tx.type === "expense" ? "-" : ""}
                     {formatMoney(tx.amount)}
                   </td>
-                  <td className="px-4 py-3 text-zinc-500 max-w-[200px] truncate">
+                  <td className="px-4 py-3 text-zinc-500 max-w-[150px] truncate">
                     {tx.note || "—"}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      {tx.review_status === "pending" && (
+                        <span className="text-xs px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded" title="รอตรวจสอบ">
+                          🟡 review
+                        </span>
+                      )}
+                      {tx.review_status === "confirmed" && (
+                        <span className="text-xs px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded" title="ยืนยันแล้ว">
+                          ✅
+                        </span>
+                      )}
+                      {tx.review_status === "rejected" && (
+                        <span className="text-xs px-1.5 py-0.5 bg-red-50 text-red-600 rounded" title="ปฏิเสธ">
+                          ❌
+                        </span>
+                      )}
+                      {tx.duplicate_status !== "unique" && (
+                        <span className="text-xs px-1.5 py-0.5 bg-orange-50 text-orange-600 rounded" title={tx.duplicate_status}>
+                          🔄
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-center">
                     <button

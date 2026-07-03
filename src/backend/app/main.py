@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .core.config import CORS_ORIGINS
 from .db.database import engine, Base
 from .db.models import seed_default_categories
-from .api import documents, transactions, projects, dashboard, categories
+from .api import documents, transactions, projects, dashboard, categories, health
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -30,6 +30,8 @@ app.include_router(transactions.router)
 app.include_router(projects.router)
 app.include_router(dashboard.router)
 app.include_router(categories.router)
+app.include_router(health.router)
+app.include_router(dashboard.export_router)
 
 
 @app.on_event("startup")

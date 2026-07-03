@@ -158,6 +158,13 @@ export default function ProjectsPage() {
                   {p.transaction_count} รายการ
                 </span>
                 <div className="flex gap-2">
+                  <a
+                    href={api.exportTransactions("csv", p.id)}
+                    download
+                    className="text-xs text-zinc-400 hover:text-blue-600"
+                  >
+                    📄 CSV
+                  </a>
                   <button
                     onClick={() => {
                       setEditProject(p);

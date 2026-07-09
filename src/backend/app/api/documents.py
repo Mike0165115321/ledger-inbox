@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from ..db.database import get_db, SessionLocal
 from ..db.models import Document, Transaction
-from ..schemas.document import DocumentResponse
+from ..schemas.document import DocumentResponse, DocumentUpdate
 from ..core.config import UPLOAD_DIR
 from ..services.upload_queue import upload_queue
 
@@ -115,6 +115,22 @@ async def list_documents(db: Session = Depends(get_db)):
         .order_by(Document.uploaded_at.desc())
         .all()
     )
+
+
+@router.put("/{doc_id}", response_model=DocumentResponse)
+async def update_document(doc_id: str, data: DocumentUpdate, db: Session = Depends(get_db)):
+    """แก้ไข document_type / project_id ของเอกสาร"""
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="ไม่พบเอกสาร")
+
+    update_data = data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(doc, key, value)
+
+    db.commit()
+    db.refresh(doc)
+    return doc
 
 
 @router.get("/{doc_id}/file")

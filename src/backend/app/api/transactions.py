@@ -23,6 +23,8 @@ router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 async def list_transactions(
     type: Optional[str] = Query(None, description="income | expense | transfer | personal | unknown"),
     project_id: Optional[str] = Query(None),
+    account_id: Optional[str] = Query(None),
+    party_id: Optional[str] = Query(None),
     month: Optional[str] = Query(None, description="YYYY-MM"),
     review_status: Optional[str] = Query(None, description="pending | confirmed | edited | rejected"),
     db: Session = Depends(get_db),
@@ -34,6 +36,10 @@ async def list_transactions(
         query = query.filter(Transaction.type == type)
     if project_id:
         query = query.filter(Transaction.project_id == project_id)
+    if account_id:
+        query = query.filter(Transaction.account_id == account_id)
+    if party_id:
+        query = query.filter(Transaction.party_id == party_id)
     if month:
         # Filter by YYYY-MM prefix on transaction_datetime (ISO string)
         query = query.filter(

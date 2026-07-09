@@ -9,7 +9,7 @@ Uses sender/receiver names, amounts, and notes to classify:
 - unknown: can't determine
 """
 
-from typing import Optional
+from typing import Optional, Sequence
 
 
 # Keywords that suggest income (someone paying you)
@@ -43,12 +43,36 @@ def classify_transaction(
     receiver_name: Optional[str] = None,
     note: Optional[str] = None,
     bank_or_wallet: Optional[str] = None,
+    self_identifiers: Optional[Sequence[str]] = None,
 ) -> str:
     """
     Classify transaction type from extracted fields.
 
+    If `self_identifiers` (names/labels from the user's own Accounts) is given
+    and non-empty, direction is decided from account ownership first:
+    - sender AND receiver match self  → transfer (between own accounts)
+    - only receiver matches self      → income
+    - only sender matches self        → expense
+    Falls through to the legacy keyword heuristic below when self_identifiers
+    is empty/None or neither side matches — this keeps behavior unchanged for
+    anyone who hasn't configured any Accounts yet.
+
     Returns: "income" | "expense" | "transfer" | "personal" | "unknown"
     """
+
+    if self_identifiers:
+        ids = [i.strip().lower() for i in self_identifiers if i]
+        s_lower = (sender_name or "").strip().lower()
+        r_lower = (receiver_name or "").strip().lower()
+        sender_is_self = bool(s_lower) and any(i in s_lower for i in ids)
+        receiver_is_self = bool(r_lower) and any(i in r_lower for i in ids)
+
+        if sender_is_self and receiver_is_self:
+            return "transfer"
+        if receiver_is_self and not sender_is_self:
+            return "income"
+        if sender_is_self and not receiver_is_self:
+            return "expense"
 
     # Combine all text for keyword matching
     text = " ".join(
@@ -94,6 +118,23 @@ def classify_transaction(
         return "expense"
 
     return "unknown"
+
+
+def match_account(bank_or_wallet: Optional[str], accounts: Sequence) -> Optional[object]:
+    """
+    Match extracted `bank_or_wallet` text against the user's own Accounts
+    (by name or bank_name, case-insensitive substring). Returns the matched
+    Account, or None if nothing matches (or bank_or_wallet is empty).
+    """
+    if not bank_or_wallet:
+        return None
+    text = bank_or_wallet.strip().lower()
+    for account in accounts:
+        if account.name and account.name.lower() in text:
+            return account
+        if account.bank_name and account.bank_name.lower() in text:
+            return account
+    return None
 
 
 def suggest_category(tx_type: str, note: Optional[str] = None) -> Optional[str]:

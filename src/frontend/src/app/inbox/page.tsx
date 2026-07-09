@@ -41,6 +41,16 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
   failed: <XCircle className="w-4 h-4 text-danger" />,
 };
 
+const DOC_TYPE_LABEL: Record<string, string> = {
+  slip: "สลิป",
+  receipt: "ใบเสร็จ",
+  invoice: "Invoice",
+  contract: "สัญญา",
+  withholding_certificate: "หนังสือหัก ณ ที่จ่าย",
+  statement: "Statement",
+  other: "อื่นๆ",
+};
+
 const MAX_VISIBLE = 20;
 
 function formatDateThai(iso: string): string {
@@ -349,9 +359,15 @@ export default function InboxPage() {
                         <p className="text-xs font-medium text-text truncate" title={doc.file_name}>
                           {doc.file_name}
                         </p>
-                        <p className="text-[10px] text-text-subtle mt-0.5">
-                          {formatTime(doc.uploaded_at)}
-                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <p className="text-[10px] text-text-subtle">
+                            {formatTime(doc.uploaded_at)}
+                          </p>
+                          <span className="text-[10px] text-text-subtle">·</span>
+                          <span className="text-[10px] text-text-subtle">
+                            {DOC_TYPE_LABEL[doc.document_type] || doc.document_type}
+                          </span>
+                        </div>
                         {doc.error_message && (
                           <p className="text-[10px] text-danger mt-1 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3 shrink-0" />

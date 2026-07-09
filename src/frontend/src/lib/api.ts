@@ -39,11 +39,15 @@ export const api = {
   getTransactions: (params?: {
     type?: string;
     project_id?: string;
+    account_id?: string;
+    party_id?: string;
     month?: string;
   }) => {
     const qs = new URLSearchParams();
     if (params?.type) qs.set("type", params.type);
     if (params?.project_id) qs.set("project_id", params.project_id);
+    if (params?.account_id) qs.set("account_id", params.account_id);
+    if (params?.party_id) qs.set("party_id", params.party_id);
     if (params?.month) qs.set("month", params.month);
     const query = qs.toString();
     return request<Transaction[]>(`/api/transactions${query ? `?${query}` : ""}`);
@@ -90,8 +94,69 @@ export const api = {
       method: "DELETE",
     }),
 
+  // ── Accounts ──
+  getAccounts: (isActive?: boolean) => {
+    const qs = isActive !== undefined ? `?is_active=${isActive}` : "";
+    return request<Account[]>(`/api/accounts${qs}`);
+  },
+
+  createAccount: (data: AccountFormData) =>
+    request<Account>("/api/accounts", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  updateAccount: (id: string, data: Partial<AccountFormData>) =>
+    request<Account>(`/api/accounts/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  deleteAccount: (id: string) =>
+    request<{ message: string }>(`/api/accounts/${id}`, {
+      method: "DELETE",
+    }),
+
+  // ── Parties ──
+  getParties: (type?: string) => {
+    const qs = type ? `?type=${type}` : "";
+    return request<Party[]>(`/api/parties${qs}`);
+  },
+
+  createParty: (data: PartyFormData) =>
+    request<Party>("/api/parties", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  updateParty: (id: string, data: Partial<PartyFormData>) =>
+    request<Party>(`/api/parties/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  deleteParty: (id: string) =>
+    request<{ message: string }>(`/api/parties/${id}`, {
+      method: "DELETE",
+    }),
+
+  // ── Owner Profile ──
+  getOwnerProfile: () => request<OwnerProfile>("/api/owner-profile"),
+
+  updateOwnerProfile: (data: OwnerProfileFormData) =>
+    request<OwnerProfile>("/api/owner-profile", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
   // ── Documents ──
   getDocuments: () => request<Document[]>("/api/documents"),
+
+  updateDocument: (id: string, data: { document_type?: string; project_id?: string | null }) =>
+    request<Document>(`/api/documents/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
 
   deleteDocument: (id: string) =>
     request<{ message: string }>(`/api/documents/${id}`, {
@@ -217,6 +282,12 @@ export interface Transaction {
   duplicate_status: string;
   project_id: string | null;
   document_id: string | null;
+  account_id: string | null;
+  party_id: string | null;
+  tax_relevant: boolean;
+  withholding_tax_amount: number | null;
+  vat_amount: number | null;
+  source: string;
   created_at: string;
   updated_at: string;
 }
@@ -234,6 +305,8 @@ export interface TransactionFormData {
   note?: string | null;
   project_id?: string | null;
   document_id?: string | null;
+  account_id?: string | null;
+  party_id?: string | null;
   review_status?: string | null;
 }
 
@@ -273,7 +346,77 @@ export interface Document {
   uploaded_at: string;
   processing_status: string;
   error_message: string | null;
+  document_type: string;
+  project_id: string | null;
   created_at: string;
+}
+
+export interface Account {
+  id: string;
+  name: string;
+  type: string;
+  bank_name: string | null;
+  owner_name: string | null;
+  account_number_masked: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AccountFormData {
+  name: string;
+  type?: string;
+  bank_name?: string | null;
+  owner_name?: string | null;
+  account_number_masked?: string | null;
+  is_active?: boolean;
+}
+
+export interface Party {
+  id: string;
+  name: string;
+  type: string;
+  tax_id: string | null;
+  address: string | null;
+  email: string | null;
+  phone: string | null;
+  default_category: string | null;
+  default_project_id: string | null;
+  withholding_rate: number | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PartyFormData {
+  name: string;
+  type?: string;
+  tax_id?: string | null;
+  address?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  default_category?: string | null;
+  default_project_id?: string | null;
+  withholding_rate?: number | null;
+  notes?: string | null;
+}
+
+export interface OwnerProfile {
+  id: string;
+  name: string | null;
+  tax_id: string | null;
+  address: string | null;
+  email: string | null;
+  phone: string | null;
+  updated_at: string;
+}
+
+export interface OwnerProfileFormData {
+  name?: string | null;
+  tax_id?: string | null;
+  address?: string | null;
+  email?: string | null;
+  phone?: string | null;
 }
 
 export interface Category {

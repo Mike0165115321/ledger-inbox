@@ -16,6 +16,12 @@ class TransactionCreate(BaseModel):
     note: Optional[str] = None
     project_id: Optional[str] = None
     document_id: Optional[str] = None
+    account_id: Optional[str] = None
+    party_id: Optional[str] = None
+    tax_relevant: Optional[bool] = None
+    withholding_tax_amount: Optional[float] = None
+    vat_amount: Optional[float] = None
+    source: Optional[str] = None
 
     class Config:
         json_schema_extra = {
@@ -45,6 +51,12 @@ class TransactionUpdate(BaseModel):
     note: Optional[str] = None
     project_id: Optional[str] = None
     document_id: Optional[str] = None
+    account_id: Optional[str] = None
+    party_id: Optional[str] = None
+    tax_relevant: Optional[bool] = None
+    withholding_tax_amount: Optional[float] = None
+    vat_amount: Optional[float] = None
+    source: Optional[str] = None
 
 
 class TransactionResponse(BaseModel):
@@ -64,6 +76,12 @@ class TransactionResponse(BaseModel):
     duplicate_status: str
     project_id: Optional[str] = None
     document_id: Optional[str] = None
+    account_id: Optional[str] = None
+    party_id: Optional[str] = None
+    tax_relevant: bool = False
+    withholding_tax_amount: Optional[float] = None
+    vat_amount: Optional[float] = None
+    source: str = "manual"
     created_at: datetime
     updated_at: datetime
 

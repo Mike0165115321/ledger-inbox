@@ -12,6 +12,7 @@ from sqlalchemy import (
     String,
     Float,
     Integer,
+    Boolean,
     Date,
     DateTime,
     Text,
@@ -46,6 +47,10 @@ class Document(Base):
     )  # uploaded | processing | extracted | waiting_model | failed | completed
     extracted_text = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
+    document_type = Column(
+        String, default="slip"
+    )  # slip | receipt | invoice | contract | withholding_certificate | statement | other
+    project_id = Column(String, ForeignKey("projects.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -72,6 +77,68 @@ class Project(Base):
 
 
 # ──────────────────────────────────────────
+# Accounts — บัญชีธนาคาร/wallet ที่เป็นของเรา
+# ──────────────────────────────────────────
+
+class Account(Base):
+    __tablename__ = "accounts"
+
+    id = Column(String, primary_key=True, default=gen_uuid)
+    name = Column(String, nullable=False)  # e.g. "KBANK - Mike"
+    type = Column(String, default="bank")  # bank | wallet | cash | promptpay
+    bank_name = Column(String, nullable=True)  # KBANK, SCB, TrueMoney
+    owner_name = Column(String, nullable=True)  # ใช้จับคู่ sender/receiver ว่าเป็นเราไหม
+    account_number_masked = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    transactions = relationship("Transaction", back_populates="account")
+
+
+# ──────────────────────────────────────────
+# Parties — คู่ค้า (ลูกค้า/vendor/ฯลฯ)
+# ──────────────────────────────────────────
+
+class Party(Base):
+    __tablename__ = "parties"
+
+    id = Column(String, primary_key=True, default=gen_uuid)
+    name = Column(String, nullable=False)
+    type = Column(
+        String, default="client"
+    )  # client | vendor | middleman | platform | personal | government
+    tax_id = Column(String, nullable=True)
+    address = Column(Text, nullable=True)
+    email = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    default_category = Column(String, nullable=True)
+    default_project_id = Column(String, ForeignKey("projects.id"), nullable=True)
+    withholding_rate = Column(Float, nullable=True)  # e.g. 3.0 = 3%
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    transactions = relationship("Transaction", back_populates="party")
+
+
+# ──────────────────────────────────────────
+# Owner Profile — ข้อมูลเจ้าของบัญชี (singleton)
+# ──────────────────────────────────────────
+
+class OwnerProfile(Base):
+    __tablename__ = "owner_profile"
+
+    id = Column(String, primary_key=True, default=lambda: "owner")
+    name = Column(String, nullable=True)
+    tax_id = Column(String, nullable=True)
+    address = Column(Text, nullable=True)
+    email = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ──────────────────────────────────────────
 # Categories — หมวดหมู่รายรับ/รายจ่าย
 # ──────────────────────────────────────────
 
@@ -94,6 +161,8 @@ class Transaction(Base):
     id = Column(String, primary_key=True, default=gen_uuid)
     document_id = Column(String, ForeignKey("documents.id"), nullable=True)
     project_id = Column(String, ForeignKey("projects.id"), nullable=True)
+    account_id = Column(String, ForeignKey("accounts.id"), nullable=True)
+    party_id = Column(String, ForeignKey("parties.id"), nullable=True)
     type = Column(
         String, nullable=False
     )  # income | expense | transfer | personal | unknown
@@ -113,11 +182,17 @@ class Transaction(Base):
     duplicate_status = Column(
         String, default="unique"
     )  # unique | suspected_duplicate | duplicate
+    tax_relevant = Column(Boolean, default=False)
+    withholding_tax_amount = Column(Float, nullable=True)
+    vat_amount = Column(Float, nullable=True)
+    source = Column(String, default="manual")  # manual | slip | statement | ai
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     document = relationship("Document", back_populates="transactions")
     project = relationship("Project", back_populates="transactions")
+    account = relationship("Account", back_populates="transactions")
+    party = relationship("Party", back_populates="transactions")
 
 
 # ──────────────────────────────────────────

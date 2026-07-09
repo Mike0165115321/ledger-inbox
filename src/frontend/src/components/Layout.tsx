@@ -16,6 +16,9 @@ import {
   Moon,
   Menu,
   Settings,
+  ClipboardCheck,
+  Wallet,
+  Users,
 } from "lucide-react";
 
 type NavGroup = {
@@ -28,6 +31,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "งานประจำวัน",
     items: [
       { href: "/inbox", label: "Inbox", icon: Inbox },
+      { href: "/review", label: "คิวตรวจสอบ", icon: ClipboardCheck },
       { href: "/transactions", label: "สมุดบัญชี", icon: ArrowLeftRight },
       { href: "/projects", label: "โปรเจกต์", icon: FolderKanban },
     ],
@@ -42,7 +46,8 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "ระบบบัญชี (Core)",
     items: [
-      // { href: "/settings/coa", label: "ผังบัญชี", icon: Settings }, // Future
+      { href: "/accounts", label: "บัญชี", icon: Wallet },
+      { href: "/parties", label: "คู่ค้า", icon: Users },
       { href: "/settings", label: "ตั้งค่า", icon: Settings },
     ],
   },

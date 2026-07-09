@@ -3,6 +3,11 @@ from typing import Optional
 from datetime import datetime
 
 
+class DocumentUpdate(BaseModel):
+    document_type: Optional[str] = None
+    project_id: Optional[str] = None
+
+
 class DocumentResponse(BaseModel):
     id: str
     file_name: str
@@ -13,6 +18,8 @@ class DocumentResponse(BaseModel):
     uploaded_at: datetime
     processing_status: str
     error_message: Optional[str] = None
+    document_type: str = "slip"
+    project_id: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

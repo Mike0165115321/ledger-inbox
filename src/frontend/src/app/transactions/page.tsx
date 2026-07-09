@@ -22,7 +22,7 @@ import {
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
-import { api, Transaction, Category, Project } from "@/lib/api";
+import { api, Transaction, Category, Project, Account, Party } from "@/lib/api";
 import TransactionForm from "@/components/TransactionForm";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -74,6 +74,8 @@ export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [parties, setParties] = useState<Party[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -101,11 +103,15 @@ export default function TransactionsPage() {
       }),
       api.getCategories(),
       api.getProjects(),
+      api.getAccounts(),
+      api.getParties(),
     ])
-      .then(([txs, cats, projs]) => {
+      .then(([txs, cats, projs, accs, parts]) => {
         setTransactions(txs);
         setCategories(cats);
         setProjects(projs);
+        setAccounts(accs);
+        setParties(parts);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -459,11 +465,15 @@ export default function TransactionsPage() {
                 sender_name: editTx.sender_name || "",
                 receiver_name: editTx.receiver_name || "",
                 bank_or_wallet: editTx.bank_or_wallet || "",
+                account_id: editTx.account_id || "",
+                party_id: editTx.party_id || "",
               }
             : undefined
         }
         categories={categories}
         projects={projects}
+        accounts={accounts}
+        parties={parties}
         title={editTx ? "แก้ไขรายการ" : "เพิ่มรายการ"}
       />
     </div>

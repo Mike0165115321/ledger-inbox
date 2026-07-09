@@ -25,6 +25,8 @@ interface TransactionFormProps {
     sender_name: string;
     receiver_name: string;
     bank_or_wallet: string;
+    account_id: string;
+    party_id: string;
   }) => void;
   initial?: {
     type: string;
@@ -36,9 +38,13 @@ interface TransactionFormProps {
     sender_name: string;
     receiver_name: string;
     bank_or_wallet: string;
+    account_id: string;
+    party_id: string;
   };
   categories: { id: string; name: string; type: string }[];
   projects: { id: string; name: string }[];
+  accounts?: { id: string; name: string }[];
+  parties?: { id: string; name: string }[];
   title?: string;
 }
 
@@ -57,6 +63,8 @@ export default function TransactionForm({
   initial,
   categories,
   projects,
+  accounts = [],
+  parties = [],
   title = "เพิ่มรายการ",
 }: TransactionFormProps) {
   const [form, setForm] = useState({
@@ -70,6 +78,8 @@ export default function TransactionForm({
     sender_name: initial?.sender_name || "",
     receiver_name: initial?.receiver_name || "",
     bank_or_wallet: initial?.bank_or_wallet || "",
+    account_id: initial?.account_id || "",
+    party_id: initial?.party_id || "",
   });
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -88,6 +98,8 @@ export default function TransactionForm({
         sender_name: initial?.sender_name || "",
         receiver_name: initial?.receiver_name || "",
         bank_or_wallet: initial?.bank_or_wallet || "",
+        account_id: initial?.account_id || "",
+        party_id: initial?.party_id || "",
       });
       setDirty(false);
     }
@@ -217,6 +229,24 @@ export default function TransactionForm({
           }))}
           placeholder="— ไม่ผูกโปรเจกต์ —"
         />
+
+        {/* Account / Party */}
+        <div className="grid grid-cols-2 gap-3">
+          <Select
+            label="บัญชี"
+            value={form.account_id}
+            onChange={(e) => updateField("account_id", e.target.value)}
+            options={accounts.map((a) => ({ value: a.id, label: a.name }))}
+            placeholder="— ไม่ผูกบัญชี —"
+          />
+          <Select
+            label="คู่ค้า"
+            value={form.party_id}
+            onChange={(e) => updateField("party_id", e.target.value)}
+            options={parties.map((p) => ({ value: p.id, label: p.name }))}
+            placeholder="— ไม่ผูกคู่ค้า —"
+          />
+        </div>
 
         {/* Sender / Receiver */}
         <div className="grid grid-cols-2 gap-3">

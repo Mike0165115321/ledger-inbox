@@ -10,9 +10,13 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from ..schemas.slip import SlipExtractionResult
-from ..db.models import Transaction, Document
+from ..db.models import Transaction, Document, Account
 from ..services.dedup_service import check_all
-from ..services.classification_service import classify_transaction, suggest_category
+from ..services.classification_service import (
+    classify_transaction,
+    suggest_category,
+    match_account,
+)
 
 
 def decide_review_status(
@@ -65,12 +69,20 @@ def run_pipeline(
 
     Returns: Transaction (saved to DB)
     """
-    # Step 1: Classify
+    # Step 1: Classify — account-aware first (falls back to keyword heuristic
+    # inside classify_transaction if no accounts are configured)
+    accounts = db.query(Account).filter(Account.is_active == True).all()  # noqa: E712
+    self_identifiers = [
+        name for a in accounts for name in (a.owner_name, a.name) if name
+    ]
+    matched_account = match_account(result.bank_or_wallet, accounts)
+
     tx_type = classify_transaction(
         sender_name=result.sender_name,
         receiver_name=result.receiver_name,
         note=result.note,
         bank_or_wallet=result.bank_or_wallet,
+        self_identifiers=self_identifiers,
     )
 
     # Low confidence → force unknown
@@ -97,6 +109,7 @@ def run_pipeline(
     # Step 5: Create transaction
     tx = Transaction(
         document_id=document.id,
+        account_id=matched_account.id if matched_account else None,
         type=tx_type,
         category=category,
         amount=result.amount or 0,
@@ -110,6 +123,7 @@ def run_pipeline(
         confidence=result.confidence,
         review_status=review_status,
         duplicate_status=dup_status,
+        source="slip",
     )
 
     db.add(tx)

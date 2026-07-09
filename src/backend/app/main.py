@@ -6,7 +6,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from .core.config import CORS_ORIGINS
 from .db.database import engine, Base
 from .db.models import seed_default_categories
-from .api import documents, transactions, projects, dashboard, categories, health
+from .db.migrations import run_light_migrations
+from .api import (
+    documents,
+    transactions,
+    projects,
+    dashboard,
+    categories,
+    health,
+    accounts,
+    parties,
+    owner_profile,
+)
 from .services.upload_queue import upload_queue
 
 
@@ -20,8 +31,9 @@ async def lifespan(app: FastAPI):
     # Shutdown
     await upload_queue.stop()
 
-# Create tables
+# Create tables + apply additive column migrations
 Base.metadata.create_all(bind=engine)
+run_light_migrations(engine)
 
 app = FastAPI(
     title="Ledger Inbox API",
@@ -47,6 +59,9 @@ app.include_router(dashboard.router)
 app.include_router(categories.router)
 app.include_router(health.router)
 app.include_router(dashboard.export_router)
+app.include_router(accounts.router)
+app.include_router(parties.router)
+app.include_router(owner_profile.router)
 
 # ── MCP Integration ──────────────────────────────────────────────
 try:

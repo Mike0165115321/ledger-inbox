@@ -12,7 +12,7 @@ from ..schemas.category import CategoryResponse
 router = APIRouter(prefix="/api/categories", tags=["categories"])
 
 
-@router.get("", response_model=list[CategoryResponse])
+@router.get("", response_model=list[CategoryResponse], operation_id="list_categories")
 async def list_categories(db: Session = Depends(get_db)):
     """List all categories, grouped by type."""
     return (

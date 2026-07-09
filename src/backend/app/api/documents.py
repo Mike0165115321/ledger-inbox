@@ -107,7 +107,7 @@ async def upload_documents_batch(
             "items": results}
 
 
-@router.get("", response_model=list[DocumentResponse])
+@router.get("", response_model=list[DocumentResponse], operation_id="list_documents")
 async def list_documents(db: Session = Depends(get_db)):
     """รายการเอกสารทั้งหมด — เรียงล่าสุดก่อน"""
     return (

@@ -13,7 +13,7 @@ from ..core.config import GEMINI_MODEL, GEMINI_RPM_LIMIT, GEMINI_TPM_LIMIT, GEMI
 router = APIRouter(prefix="/api/health", tags=["health"])
 
 
-@router.get("/model")
+@router.get("/model", operation_id="model_health")
 async def model_health():
     """สถานะ Gemini API + limits จาก .env"""
     return {
@@ -29,7 +29,7 @@ async def model_health():
     }
 
 
-@router.get("/queue")
+@router.get("/queue", operation_id="queue_health")
 async def queue_health():
     """
     สถานะ Upload Queue แบบ real-time

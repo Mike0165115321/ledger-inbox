@@ -64,13 +64,29 @@ app.include_router(parties.router)
 app.include_router(owner_profile.router)
 
 # ── MCP Integration ──────────────────────────────────────────────
+# Phase 1 policy (docs/ACCOUNTING_WORKSPACE_VISION.md #7): MCP is read-only until
+# Phase 2 (draft-only) / Phase 4 (write, with approval). Whitelist by operation_id
+# rather than blacklist so new POST/PUT/DELETE routes are excluded by default.
+MCP_READ_ONLY_OPERATIONS = [
+    "list_accounts", "get_account",
+    "list_categories",
+    "dashboard_summary", "tax_summary", "tax_calculation", "dashboard_timeline",
+    "list_documents",
+    "model_health", "queue_health",
+    "get_owner_profile",
+    "list_parties", "get_party",
+    "list_projects", "get_project",
+    "list_transactions", "get_transaction",
+]
+
 try:
     from fastapi_mcp import FastApiMCP
 
     mcp = FastApiMCP(
         app,
         name="Ledger Inbox MCP",
-        description="Evidence-first Accounting — query & manage transactions, projects, tax calculations. Thai personal finance tools for freelancers.",
+        description="Evidence-first Accounting — read-only query tools for transactions, projects, parties, accounts, and tax calculations. Thai personal finance for freelancers.",
+        include_operations=MCP_READ_ONLY_OPERATIONS,
     )
     mcp.mount()  # → http://localhost:8000/mcp
 except ImportError:

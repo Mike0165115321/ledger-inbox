@@ -48,7 +48,7 @@ def _compute_stats(project: Project, db: Session) -> ProjectWithStats:
     return stats
 
 
-@router.get("", response_model=list[ProjectWithStats])
+@router.get("", response_model=list[ProjectWithStats], operation_id="list_projects")
 async def list_projects(db: Session = Depends(get_db)):
     """List all projects with financial stats."""
     projects = db.query(Project).order_by(Project.created_at.desc()).all()
@@ -65,7 +65,7 @@ async def create_project(data: ProjectCreate, db: Session = Depends(get_db)):
     return project
 
 
-@router.get("/{id}", response_model=ProjectWithStats)
+@router.get("/{id}", response_model=ProjectWithStats, operation_id="get_project")
 async def get_project(id: str, db: Session = Depends(get_db)):
     """Get a single project with stats."""
     project = db.query(Project).filter(Project.id == id).first()

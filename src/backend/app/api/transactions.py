@@ -19,7 +19,7 @@ from ..schemas.transaction import (
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
 
-@router.get("", response_model=list[TransactionResponse])
+@router.get("", response_model=list[TransactionResponse], operation_id="list_transactions")
 async def list_transactions(
     type: Optional[str] = Query(None, description="income | expense | transfer | personal | unknown"),
     project_id: Optional[str] = Query(None),
@@ -61,7 +61,7 @@ async def create_transaction(data: TransactionCreate, db: Session = Depends(get_
     return tx
 
 
-@router.get("/{id}", response_model=TransactionResponse)
+@router.get("/{id}", response_model=TransactionResponse, operation_id="get_transaction")
 async def get_transaction(id: str, db: Session = Depends(get_db)):
     """Get a single transaction by ID."""
     tx = db.query(Transaction).filter(Transaction.id == id).first()

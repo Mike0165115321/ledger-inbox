@@ -563,7 +563,11 @@ Component ต้องโง่ แต่ใช้งานดี
 
 ---
 
-# 7. MCP ควรรอ แต่ต้องออกแบบช่องไว้ตั้งแต่ตอนนี้
+# 7. MCP เริ่ม read-only ตั้งแต่ Phase 1
+
+แก้ไขจากแผนเดิมที่จะให้ MCP รอถึง Phase 4: ถ้ารอ Phase 4 กว่าจะเปิด AI query ได้ ต้องผ่าน 3 phase ก่อน ซึ่งเสีย
+โอกาสให้ AI ช่วยตรวจ/สรุป/เตือนตั้งแต่ข้อมูลกองแรก แถมพอถึง Phase 4 จริงอาจต้อง refactor ใหม่อยู่ดี เพราะงั้น
+วาง MCP Gateway แบบ **read-only ตั้งแต่ Phase 1** ไปเลย โดยที่ permission ยังต้องออกแบบระดับสิทธิ์ไว้ตั้งแต่ต้น
 
 MCP ไม่ควรเข้าถึง database ตรง ๆ
 
@@ -577,19 +581,16 @@ MCP Client
 → Database
 ```
 
-สิทธิ์ควรแบ่ง:
+สิทธิ์ควรแบ่งเป็น 3 ระดับ ผูกกับ phase ที่เปิดใช้งานจริง:
 
 ```text
-read_finance_summary
-read_transactions
-read_documents_metadata
-create_draft_transaction
-suggest_category
-generate_report
-export_tax_packet
+Phase 1 (เปิดทันที): read_finance_summary, read_transactions,
+                     read_documents_metadata, read_projects, read_parties
+Phase 2 (เปิด draft): create_draft_transaction, suggest_category, generate_report
+Phase 4 (เปิดเขียนจริง): export_tax_packet, write_* (ผ่าน approval เท่านั้น)
 ```
 
-ห้ามให้ AI ภายนอกทำสิ่งนี้ในช่วงแรก:
+ห้ามให้ AI ภายนอกทำสิ่งนี้จนกว่าจะมี approval flow ครบ:
 
 ```text
 delete_transaction
@@ -599,7 +600,7 @@ edit_amount
 submit_tax
 ```
 
-MCP ควรเริ่มจาก **read-only + draft-only** ก่อน
+MCP เริ่มจาก **read-only ตั้งแต่ Phase 1**, **draft-only ตั้งแต่ Phase 2**, เขียนจริงรอ Phase 4
 
 ตัวอย่าง flow ที่ปลอดภัย:
 
@@ -651,48 +652,29 @@ Bank API sync
 
 # 9. Roadmap ใหม่
 
-## Phase 1 — Accounting Core
+> อัปเดตหลัง Gap Analysis (10 Jul 2026): เพิ่ม MCP read-only, Statement Import, Budget/Recurring,
+> Notification, Forecast เข้าไปในแต่ละ phase — เหตุผลอยู่ใต้ตารางนี้
 
-ทำให้ ledger น่าเชื่อถือก่อน:
+| Phase | เนื้อหา |
+|:--|:--|
+| **1 — Accounting Core** | Accounts, Owner Identity, Parties, Transactions, Documents, Review Queue, Projects, **MCP read-only**, **Statement Import เบื้องต้น** |
+| **2 — Accountant Workflow** | Missing document checker, Reconciliation, Report export, Tax prep packet, Withholding tax tracking, **Budget**, **Recurring Transactions**, MCP draft-only |
+| **3 — Tax Center** | PIT estimate, Deductible expense review, VAT watch, Tax document checklist, **Notification** |
+| **4 — MCP เขียนจริง** | **Forecast**, **Write MCP** (AI เสนอ → คน Approve), Permission system เต็มรูปแบบ, Audit log |
 
-```text
-Accounts
-Owner Identity
-Parties
-Transactions
-Documents
-Review Queue
-Projects
-```
+## ทำไมถึงเพิ่ม 3 อย่างนี้เข้ามา
 
-## Phase 2 — Accountant Workflow
+**MCP read-only ตั้งแต่ Phase 1** — ดูหัวข้อ 7 อ่านเพิ่มได้ สรุปคือ AI มีประโยชน์ตั้งแต่ข้อมูลกองแรก ไม่ต้องรอให้ระบบสมบูรณ์
 
-```text
-Missing document checker
-Reconciliation
-Report export
-Tax prep packet
-Withholding tax tracking
-```
+**Statement Import (CSV/PDF จาก KBANK, SCB, TrueMoney, KPlus)** — ตอนนี้ evidence เข้าระบบได้แค่ slip upload กับ manual entry
+เท่านั้น รายการโอนผ่าน banking app ไม่เข้าระบบเลย ทำให้ reconciliation (หัวข้อ 4 ข้อ 5) ทำไม่ได้จริง เพราะไม่มี
+statement ฝั่งธนาคารมาเทียบ ต้อง parse → map เข้า Account system (ใช้ Account Matching ที่มีอยู่แล้ว) → กันรายการซ้ำ
 
-## Phase 3 — Tax Center
-
-```text
-PIT estimate
-Deductible expense review
-VAT watch
-Tax document checklist
-```
-
-## Phase 4 — MCP
-
-```text
-Read-only MCP
-Draft transaction MCP
-Report generation MCP
-Permission system
-Audit log
-```
+**Budget / Recurring Transactions / Notification / Forecast** — วิสัยทัศน์เดิมเป็น reactive ล้วน (user ทำ ระบบบันทึก)
+ไม่มีระบบที่ AI จะทัก/เตือน/วางแผนล่วงหน้า เพิ่มเข้ามาเพื่อให้ระบบ proactive มากขึ้น:
+- Budget + Recurring → ควบคู่ Phase 2 (Accountant Workflow)
+- Notification → ควบคู่ Phase 3 (Tax Center) เช่น เตือนรายจ่ายเกินกรอบ หรือใกล้ deadline ภาษี
+- Forecast → รอ Phase 4 ตอนมี data เยอะพอให้คาดการณ์ cashflow ได้แม่น
 
 ---
 
@@ -723,11 +705,11 @@ Settings
 MCP / AI Access
 ```
 
-และสิ่งที่ต้องทำก่อน MCP คือ:
+และหลักที่ยึดไว้สำหรับ MCP คือ:
 
-> ทำให้ระบบบัญชีเชื่อถือได้ก่อน
-> AI ภายนอกค่อยเข้ามาช่วยอ่าน สรุป แนะนำ และสร้าง draft
-> ห้ามให้ AI แก้สมุดบัญชีจริงโดยไม่มี approval
+> เปิด AI อ่านข้อมูล (read-only) ได้ตั้งแต่ Phase 1 ไม่ต้องรอระบบสมบูรณ์
+> AI ช่วยอ่าน สรุป แนะนำ และสร้าง draft ได้ตั้งแต่ Phase 2
+> ห้ามให้ AI แก้สมุดบัญชีจริงโดยไม่มี approval จนกว่าจะถึง Phase 4
 
 อันนี้คือทิศที่ถูกแล้ว ศิษย์ไม่ได้กำลังทำแอปบัญชีเล็ก ๆ แล้ว แต่กำลังทำ **Business Accounting Brain** ของตัวเองครับ.
 

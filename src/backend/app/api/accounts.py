@@ -14,7 +14,7 @@ from ..schemas.account import AccountCreate, AccountUpdate, AccountResponse
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
 
 
-@router.get("", response_model=list[AccountResponse])
+@router.get("", response_model=list[AccountResponse], operation_id="list_accounts")
 async def list_accounts(
     is_active: Optional[bool] = Query(None),
     db: Session = Depends(get_db),
@@ -36,7 +36,7 @@ async def create_account(data: AccountCreate, db: Session = Depends(get_db)):
     return account
 
 
-@router.get("/{id}", response_model=AccountResponse)
+@router.get("/{id}", response_model=AccountResponse, operation_id="get_account")
 async def get_account(id: str, db: Session = Depends(get_db)):
     """Get a single account by ID."""
     account = db.query(Account).filter(Account.id == id).first()

@@ -14,7 +14,7 @@ from ..schemas.party import PartyCreate, PartyUpdate, PartyResponse
 router = APIRouter(prefix="/api/parties", tags=["parties"])
 
 
-@router.get("", response_model=list[PartyResponse])
+@router.get("", response_model=list[PartyResponse], operation_id="list_parties")
 async def list_parties(
     type: Optional[str] = Query(None, description="client | vendor | middleman | platform | personal | government"),
     db: Session = Depends(get_db),
@@ -36,7 +36,7 @@ async def create_party(data: PartyCreate, db: Session = Depends(get_db)):
     return party
 
 
-@router.get("/{id}", response_model=PartyResponse)
+@router.get("/{id}", response_model=PartyResponse, operation_id="get_party")
 async def get_party(id: str, db: Session = Depends(get_db)):
     """Get a single party by ID."""
     party = db.query(Party).filter(Party.id == id).first()

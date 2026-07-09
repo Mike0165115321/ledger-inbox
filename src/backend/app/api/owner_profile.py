@@ -24,7 +24,7 @@ def _get_or_create(db: Session) -> OwnerProfile:
     return profile
 
 
-@router.get("", response_model=OwnerProfileResponse)
+@router.get("", response_model=OwnerProfileResponse, operation_id="get_owner_profile")
 async def get_owner_profile(db: Session = Depends(get_db)):
     """Get owner profile — creates a default (empty) row on first access."""
     return _get_or_create(db)

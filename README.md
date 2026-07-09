@@ -1,29 +1,23 @@
-# 📒 Ledger Inbox — กล่องบัญชีอัจฉริยะ
+# 📒 Ledger Inbox — Business Accounting Brain
 
-> **ระบบบัญชีส่วนตัวสำหรับนักพัฒนาฟรีแลนซ์**
-> Evidence-first Accounting — ทุกตัวเลขต้องผูกกับหลักฐาน
+> **AI จัดการบัญชีให้คุณ คุณเอาเวลาไปหาเงิน**
+>
+> ยุค AI แล้ว — ไม่มีใครเขานั่งลงรายการบัญชีเองกันแล้ว
+> Ledger Inbox คือสมองบัญชีส่วนตัวที่ AI จัดการให้ ตั้งแต่เก็บหลักฐาน ลงรายการ คำนวณภาษี จนถึงส่งออกให้นักบัญชี
 
 ---
 
-## 🎯 Features
+## 🎯 What It Does For You
 
-| Feature | Status |
-|:--|:--:|
-| ✅ บันทึกรายรับ / รายจ่าย / โอน / ส่วนตัว | Done |
-| ✅ อัปโหลดสลิป — AI อ่านอัตโนมัติ (Gemini Flash) | Done |
-| ✅ จัดหมวดอัตโนมัติ + ผูกโปรเจกต์ | Done |
-| ✅ กันรายการซ้ำ 3 ระดับ | Done |
-| ✅ Inbox & Review Queue — คิวตรวจสอบรายการในที่เดียว | Done |
-| ✅ Dashboard พร้อมกราฟ interactive (Recharts) | Done |
-| ✅ Timeline รายรับ-รายจ่าย (วัน/สัปดาห์/เดือน/ปี) | Done |
-| ✅ คำนวณภาษีเงินได้บุคคลธรรมดา (ขั้นบันไดภาษีไทย) | Done |
-| ✅ หน้า Tax Calculator — วางแผนภาษีเต็มรูปแบบ | Done |
-| ✅ Export CSV / Excel / Tax Summary | Done |
-| ✅ Dark Mode | Done |
-| ✅ Design Token System — เปลี่ยนธีมได้ทันที | Done |
-| ✅ MCP Server — AI Agent เชื่อมต่อ query ข้อมูลได้ | Done |
-| ❌ Login / Cloud / Multi-user | V1 ไม่ทำ |
-| ❌ Banking API | V1 ไม่ทำ |
+| AI ทำแทนคุณ | คุณไม่ต้อง |
+|:--|:--|
+| ✅ อ่านสลิป/ใบเสร็จ แล้วลงรายการให้ | นั่งพิมพ์รายการเอง |
+| ✅ จัดหมวด + ผูกโปรเจกต์ อัตโนมัติ | เดาว่ารายการนี้ค่าอะไร |
+| ✅ กันรายการซ้ำ 3 ระดับ | กลัวลงซ้ำ |
+| ✅ ดึง statement ธนาคารมาตีความ | แยกรายรับรายจ่ายเอง |
+| ✅ คำนวณภาษี + วางแผนลดหย่อน | งบสิ้นปี |
+| ✅ MCP Server — AI Agent ถามข้อมูลการเงินคุณได้ | เปิด dashboard ดูเอง |
+| ✅ ส่งออก Tax Packet ไปให้นักบัญชี | เรียงเอกสาร |
 
 ---
 
@@ -33,7 +27,6 @@
 |:--|:--|
 | Frontend | Next.js 16 + React 19 + Tailwind CSS v4 |
 | Charts | Recharts (Area, Bar, Pie, Donut) |
-| Icons | Lucide React |
 | Backend | Python FastAPI |
 | Database | SQLite (Offline First) |
 | AI Slip Reader | Gemini 3.1 Flash Lite (Vision API) |
@@ -64,7 +57,7 @@ npm run dev
 
 ## 🤖 MCP — AI Agent Integration
 
-Ledger Inbox มี MCP Server ในตัว — AI อย่าง Claude, Cursor, ZCode เชื่อมต่อ query ข้อมูลบัญชีได้โดยตรง
+Ledger Inbox มี MCP Server ในตัว — AI อย่าง Claude, Cursor, OpenCode, ZCode เชื่อมต่อถามข้อมูลบัญชีคุณได้
 
 ```json
 {
@@ -77,26 +70,50 @@ Ledger Inbox มี MCP Server ในตัว — AI อย่าง Claude, Cu
 }
 ```
 
-ดูไฟล์ `mcp.json` สำหรับ config สำเร็จรูป
+**ตัวอย่างที่ AI ถาม ledger-inbox ได้:**
+- "เดือนนี้รายรับเท่าไหร่"
+- "โปรเจกต์ไหนกำไรดีสุด"
+- "ค่า AI/API เดือนนี้เท่าไหร่"
+- "ประมาณการภาษีปีนี้"
+- "มีรายการไหนขาดหลักฐานบ้าง"
+- "เตรียม tax packet ให้หน่อย"
 
 ---
 
-## 📁 Project Structure
+## 🗺️ Architecture
+
+```
+[Inbox] → [Slip / Statement / Manual]
+    ↓
+[Business Agent] → classify + dedup + match account
+    ↓
+[Review Queue] → AI draft → Human approve
+    ↓
+[Ledger] → Double-Entry (SQLite)
+    ↓
+[Reports] → Dashboard / Tax / Export
+    ↓
+[MCP Server] → AI Agent query everything
+```
+
+---
+
+### 📁 Project Structure
 
 ```
 src/
 ├── backend/              # FastAPI (port 8000)
 │   └── app/
-│       ├── api/          # documents, transactions, projects, dashboard, categories, health
+│       ├── api/          # REST endpoints
 │       ├── agents/       # Business Agent (classify + dedup + review)
-│       ├── services/     # Gemini, Classification, Dedup, Export, Tax, Upload Queue
+│       ├── services/     # Gemini, Classification, Dedup, Export, Tax
 │       ├── mcp_tools.py  # Custom MCP compound tools
 │       ├── schemas/      # Pydantic models
 │       └── db/           # SQLAlchemy models + SQLite
 │
 └── frontend/             # Next.js 16 (port 3000)
     └── src/
-        ├── app/          # 6 pages: Dashboard, Inbox, Transactions, Projects, Tax, Settings
+        ├── app/          # 12 pages: Dashboard → Inbox → Transactions → Projects → Parties → Accounts → Documents → Review → Reports → Tax → Settings → MCP
         ├── components/   # Layout, Forms, FileUpload, StatCard, QueueStatusBar
         │   └── ui/       # Design System: Button, Card, Badge, Skeleton, Input, Modal
         └── lib/          # API client + TypeScript types
@@ -104,38 +121,14 @@ src/
 
 ---
 
-## 🗺️ Architecture & Data Flow
+## 🧠 Core Principles
 
-```text
-[Inbox] → [Categorize/Classify] → [Ledger (Double-Entry)] → [Reports/Dashboard]
-                                          ↓
-                                   [Tax Engine]
-                                          ↓
-                                   [MCP Server]
-```
-
-**หลักการบัญชี (Accounting Core) ที่ซ่อนอยู่:**
-- **Double-Entry Bookkeeping:** ธุรกรรมทำงานบนหลักการบัญชีคู่เบื้องหลัง (Debit/Credit) แบบอัตโนมัติ เพื่อรักษาความถูกต้องของงบ
-- **Immutability:** บันทึกแล้วห้ามแก้ทับ (No overwrite) หากต้องการแก้ให้ใช้การ Reverse (กลับรายการ) เพื่อรักษา Audit Trail
-- **Human-in-the-loop:** AI ทำหน้าที่แนะนำ (Draft) ใน Inbox User ต้องเป็นคนกดยืนยัน (Approve) ก่อนลง Ledger จริง
-
-**Technical Flow:**
-- **Slip Pipeline:** Upload Slip → Gemini Vision API → Business Agent (classify + dedup) → Ledger (SQLite)
-- **UI & Reports:** Dashboard ← Timeline API ← Aggregated transactions
-- **MCP Server:** All REST endpoints auto-exposed as tools
-
----
-
-## 🎨 Design System
-
-เปลี่ยนธีมทั้งแอปได้จากการแก้แค่ CSS variables ใน `globals.css`:
-
-```css
-:root { --color-surface: #fff; --color-text: #1c1917; ... }
-.dark { --color-surface: #0c0a09; --color-text: #fafaf9; ... }
-```
-
-Components ทั้งหมดใช้ semantic tokens — ไม่มี hardcoded สี
+- **Evidence-first** — ทุกตัวเลขต้องผูกกับหลักฐาน ถ้าไม่มีหลักฐาน = ไม่มีใน ledger
+- **Double-Entry** — ทุกธุรกรรมมี Debit/Credit อัตโนมัติ เพื่อรักษาความถูกต้อง
+- **Immutability** — บันทึกแล้วห้ามแก้ทับ ต้อง Reverse อย่างเดียว (Audit Trail)
+- **Human-in-the-loop** — AI Draft → คน Approve → ลง Ledger
+- **MCP First** — AI Agent เข้าถึงข้อมูลการเงินได้ตั้งแต่ระบบแรกเริ่ม
+- **Proactive** — ไม่ใช่แค่บันทึก แต่เตือน วางแผน และคาดการณ์ให้
 
 ---
 
@@ -151,13 +144,26 @@ Components ทั้งหมดใช้ semantic tokens — ไม่มี ha
 
 ---
 
-## ⚠️ Principles & Non-goals (V1)
+## ⚠️ Non-goals (V1)
 
-**Core Principles:**
-- **Offline First 100%** — ข้อมูลทั้งหมดอยู่ในเครื่อง ไม่พึ่งพา Cloud Storage
-- **No SaaS** — Desktop-first (สามารถห่อเป็น Electron/Tauri ได้ในอนาคต)
-- **Module Design** — โปรเจกต์นี้ตั้งใจให้เป็น Module ส่วนหนึ่งของ AI Personal Assistant ในอนาคต
+- ไม่มีระบบ Login / Multi-user — ส่วนตัวล้วน
+- ไม่ใช่ SaaS — ข้อมูลในเครื่องคุณ 100%
+- ไม่ใช่ ERP / ระบบบริษัท — ฟรีแลนซ์ไม่ต้องซับซ้อนขนาดนั้น
+- ไม่ยื่นภาษีแทน — AI เตรียมให้ แต่คุณหรืองบ质的เป็นคนยื่น
 
-**Non-goals (สิ่งที่ไม่ทำใน V1):**
-- ไม่มีระบบ Login / Multi-user
-- ไม่เชื่อมต่อ Banking API อัตโนมัติ (รับเฉพาะ Statement/Slip)
+---
+
+## Roadmap
+
+| Phase | Scope |
+|:--|:--|
+| **1** 🔴 | Accounting Core + MCP read-only + Statement Import |
+| **2** 🟡 | Accountant Workflow + Budget + Recurring |
+| **3** 🟠 | Tax Center + Notification |
+| **4** 🟢 | Forecast + Write MCP (AI เสนอ → คน Approve) |
+
+---
+
+> **ยุค AI แล้ว — อย่าเสียเวลาจัดการบัญชีด้วยมือ**
+> เอาเวลาไปหาเงิน ไปพัฒนาตัวเอง ไปทำของที่ใช่
+> Ledger Inbox + AI จัดการส่วนที่เหลือให้คุณ

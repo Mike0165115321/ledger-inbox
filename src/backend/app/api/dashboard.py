@@ -22,7 +22,7 @@ from ..services.tax_service import calculate_tax, format_money
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 
-@router.get("/summary")
+@router.get("/summary", operation_id="dashboard_summary")
 async def dashboard_summary(
     year: Optional[int] = Query(None, description="ปี ค.ศ. เช่น 2026"),
     db: Session = Depends(get_db),
@@ -90,7 +90,7 @@ async def dashboard_summary(
     }
 
 
-@router.get("/tax-summary")
+@router.get("/tax-summary", operation_id="tax_summary")
 async def tax_summary(
     year: Optional[int] = Query(None, description="ปี ค.ศ. เช่น 2026"),
     db: Session = Depends(get_db),
@@ -148,7 +148,7 @@ async def tax_summary(
     }
 
 
-@router.get("/tax-calculation")
+@router.get("/tax-calculation", operation_id="tax_calculation")
 async def tax_calculation(
     year: Optional[int] = Query(None, description="ปี ค.ศ. เช่น 2026"),
     db: Session = Depends(get_db),
@@ -207,7 +207,7 @@ async def tax_calculation(
     }
 
 
-@router.get("/timeline")
+@router.get("/timeline", operation_id="dashboard_timeline")
 async def dashboard_timeline(
     granularity: Literal["day", "week", "month", "year"] = Query("month"),
     year: Optional[int] = Query(None, description="ปี ค.ศ. เช่น 2026"),

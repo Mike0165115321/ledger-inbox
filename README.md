@@ -2,8 +2,9 @@
 
 > **AI จัดการบัญชีให้คุณ คุณเอาเวลาไปหาเงิน**
 >
-> ยุค AI แล้ว — ไม่มีใครเขานั่งลงรายการบัญชีเองกันแล้ว
-> Ledger Inbox คือสมองบัญชีส่วนตัวที่ AI จัดการให้ ตั้งแต่เก็บหลักฐาน ลงรายการ คำนวณภาษี จนถึงส่งออกให้นักบัญชี
+> ยุค AI แล้ว — ไม่มีใครเขานั่งลงรายการบัญชีเอง หรือจ้างนักบัญชีกันแล้ว
+> Ledger Inbox คือ **AI นักบัญชีส่วนตัวผ่าน MCP** — ทำงานแทนนักบัญชีทั้งหมด ตั้งแต่เก็บหลักฐาน ลงรายการ
+> กระทบยอด จนถึงเตรียมภาษีทั้งปี คุณแค่ตรวจแล้วอนุมัติ
 
 ---
 
@@ -17,7 +18,7 @@
 | ✅ ดึง statement ธนาคารมาตีความ | แยกรายรับรายจ่ายเอง |
 | ✅ คำนวณภาษี + วางแผนลดหย่อน | งบสิ้นปี |
 | ✅ MCP Server — AI Agent ถามข้อมูลการเงินคุณได้ | เปิด dashboard ดูเอง |
-| ✅ ส่งออก Tax Packet ไปให้นักบัญชี | เรียงเอกสาร |
+| ✅ เตรียม Tax Packet ครบชุด พร้อมใช้ยื่นภาษี | เรียงเอกสาร / จ้างนักบัญชี |
 
 ---
 
@@ -149,7 +150,7 @@ src/
 - ไม่มีระบบ Login / Multi-user — ส่วนตัวล้วน
 - ไม่ใช่ SaaS — ข้อมูลในเครื่องคุณ 100%
 - ไม่ใช่ ERP / ระบบบริษัท — ฟรีแลนซ์ไม่ต้องซับซ้อนขนาดนั้น
-- ไม่ยื่นภาษีแทน — AI เตรียมให้ แต่คุณหรืองบ质的เป็นคนยื่น
+- ไม่ยื่นภาษีแทน — AI เตรียมให้ครบชุด แต่คุณเป็นคนกดยื่นเอง
 
 ---
 
@@ -157,10 +158,10 @@ src/
 
 | Phase | Scope |
 |:--|:--|
-| **1** 🔴 | Accounting Core + MCP read-only + Statement Import |
-| **2** 🟡 | Accountant Workflow + Budget + Recurring |
-| **3** 🟠 | Tax Center + Notification |
-| **4** 🟢 | Forecast + Write MCP (AI เสนอ → คน Approve) |
+| **1** 🟢 | Accounting Core ✅ + MCP read-only (19 tools) ✅ + Statement Import CSV ✅ |
+| **2** 🔴 | AI Accountant Workflow — MCP draft tools + Reconciliation + Budget + Recurring |
+| **3** 🔴 | Tax Center + Notification |
+| **4** 🔴 | Autonomous Accountant — Write MCP + auto-approve rules + Audit log + Forecast |
 
 ---
 

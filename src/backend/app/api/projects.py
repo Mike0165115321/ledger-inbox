@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..db.database import get_db
 from ..db.models import Project, Transaction
+from ..mcp_tools import get_project_report as build_project_report
 from ..schemas.project import (
     ProjectCreate,
     ProjectUpdate,
@@ -72,6 +73,15 @@ async def get_project(id: str, db: Session = Depends(get_db)):
     if not project:
         raise HTTPException(status_code=404, detail="ไม่พบโปรเจกต์")
     return _compute_stats(project, db)
+
+
+@router.get("/{id}/report", operation_id="get_project_report")
+async def get_project_report(id: str, db: Session = Depends(get_db)):
+    """รายงานการเงินเต็มรูปแบบของโปรเจกต์ — ยอดรวม + รายการล่าสุด 10 รายการ"""
+    report = build_project_report(db, id)
+    if "error" in report:
+        raise HTTPException(status_code=404, detail="ไม่พบโปรเจกต์")
+    return report
 
 
 @router.put("/{id}", response_model=ProjectResponse)

@@ -16,10 +16,20 @@ from sqlalchemy.orm import Session
 
 from ..db.database import get_db
 from ..db.models import Transaction
+from ..mcp_tools import get_yearly_summary
 from ..services.export_service import export_csv, export_excel, export_tax_summary_excel
 from ..services.tax_service import calculate_tax, format_money
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
+
+
+@router.get("/yearly-summary", operation_id="get_yearly_summary")
+async def yearly_summary(
+    year: Optional[int] = Query(None, description="ปี ค.ศ. เช่น 2026"),
+    db: Session = Depends(get_db),
+):
+    """สรุปทั้งปีแบบเข้ม — รายรับ/รายจ่าย/กำไร, top categories, รายเดือน, ประมาณการภาษี, รายการรอตรวจ"""
+    return get_yearly_summary(db, year)
 
 
 @router.get("/summary", operation_id="dashboard_summary")

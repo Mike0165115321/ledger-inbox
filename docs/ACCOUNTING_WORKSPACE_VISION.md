@@ -1,17 +1,22 @@
-# Ledger Inbox — Accounting Workspace Vision
+# Ledger Inbox — AI Personal Accountant Vision
 
-> **ศิษย์คิดถูกแล้ว จุดนี้ต้องหยุดเพิ่มฟีเจอร์ แล้วเปลี่ยนโจทย์เป็น:**
-> **Ledger Inbox ไม่ใช่แอปอ่านสลิปแล้วจบ แต่ต้องเป็น "Accounting Workspace" สำหรับเตรียมบัญชีจริงให้ตัวเองและนักบัญชีตรวจต่อได้**
+> **อัปเดตทิศทางครั้งใหญ่ (10 Jul 2026): เปลี่ยนโจทย์อีกรอบ —**
+> **Ledger Inbox ไม่ใช่แค่ workspace เตรียมบัญชีให้นักบัญชีตรวจ แต่ต้องเป็น "AI นักบัญชีส่วนตัว" ที่ทำงานแทนนักบัญชีทั้งหมด ผ่าน MCP**
 
-ระบบไม่ควรแทนนักบัญชี 100% แต่ควรทำให้สิ่งที่นักบัญชีต้องใช้ **สะอาด ครบ ตรวจง่าย ส่งออกง่าย** 🧾
+เป้าหมายคือ **แทนนักบัญชี** — AI ทำทุกงานที่นักบัญชีทำ (จัดหมวด ตรวจหลักฐาน กระทบยอด เตรียมภาษี แนะนำ)
+โดยเจ้าของเงินยังเป็นคนอนุมัติขั้นสุดท้าย เหมือนเซ็นรับงานจากนักบัญชี 🧾
+
+หัวใจของระบบจึงย้ายจาก "หน้า UI" ไปอยู่ที่ **MCP Gateway** — ชุดเครื่องมือที่ทำให้ AI ตัวไหนก็ได้
+(Claude ฯลฯ) ต่อเข้ามาทำหน้าที่นักบัญชีของเราได้ทันที ส่วน UI คือโต๊ะทำงานของมนุษย์
+ไว้ตรวจและอนุมัติงานที่ AI ทำ
 
 ---
 
-# 1. นักบัญชีจริง ๆ เขาทำอะไร
+# 1. งานของนักบัญชีที่ AI ต้องทำแทนให้ได้
 
 งานนักบัญชีไม่ได้เริ่มจาก "คำนวณภาษี" แต่เริ่มจาก **จัดระเบียบหลักฐานและแปลงเป็นข้อมูลบัญชีที่เชื่อถือได้**
 
-สิ่งที่ระบบควรรองรับ:
+นี่คือ job description ของ AI นักบัญชี — ทุกข้อต้องมีเครื่องมือ MCP รองรับ:
 
 1. **เก็บหลักฐาน**
    สลิป, ใบเสร็จ, invoice, contract, ใบหัก ณ ที่จ่าย, statement
@@ -40,18 +45,19 @@
 
 # 2. ขอบเขตที่ควรล็อกใหม่
 
-อาจารย์แนะนำให้เรียก scope นี้ว่า:
+scope ใหม่ของโปรเจกต์นี้คือ:
 
-## **Ledger Inbox — Accounting Workspace for Freelance Developers**
+## **Ledger Inbox — AI Personal Accountant for Freelance Developers**
 
 ไม่ใช่ SaaS
 ไม่ใช่ ERP
 ไม่ใช่ระบบบริษัทเต็มรูปแบบ
-ไม่ใช่ระบบยื่นภาษีแทนคน
+ไม่ใช่ระบบกดยื่นภาษีอัตโนมัติ (AI เตรียมทุกอย่างให้ แต่คนเป็นผู้ยื่น)
 
 แต่เป็น:
 
-> **ระบบเตรียมบัญชีส่วนตัวที่ทำให้รายรับ รายจ่าย หลักฐาน โปรเจกต์ และภาษีพร้อมให้นักบัญชีตรวจ**
+> **นักบัญชีส่วนตัวที่เป็น AI — จัดการรายรับ รายจ่าย หลักฐาน โปรเจกต์ และภาษีให้เราแบบครบวงจร
+> โดยไม่ต้องจ้างนักบัญชี และเราเป็นคนอนุมัติงานแทนการเซ็นรับงานจากนักบัญชี**
 
 นี่คือขอบเขตที่คมที่สุด
 
@@ -77,7 +83,8 @@
 ```
 
 แต่ใน V1 จริง ๆ ให้ทำแค่ 1–10 ก่อน
-**MCP / AI Access ทำเป็นเมนูรอไว้ได้ แต่ยังไม่เปิดให้เขียนข้อมูล**
+**MCP / AI Access ไม่ใช่เมนูรออีกต่อไป — read-only เปิดใช้แล้ว (19 tools) และจะขยายเป็นหน้าจัดการสิทธิ์/audit log
+ของ AI นักบัญชีเมื่อเปิด draft และ write**
 
 ---
 
@@ -174,7 +181,7 @@ source: manual / slip / statement / ai
 note
 ```
 
-อันนี้คือระดับที่ "นักบัญชีตรวจต่อได้"
+อันนี้คือระดับที่ "AI นักบัญชีทำงานต่อได้จริง" — ทั้งจัดหมวด กระทบยอด และเตรียมภาษี
 
 อย่าให้ transaction มีแค่ date, amount, category เพราะมันไม่พอสำหรับภาษีและตรวจย้อนหลัง
 
@@ -349,7 +356,8 @@ AI อ่านว่าอะไร
 ปุ่ม Link Project
 ```
 
-นี่คือ human-in-the-loop ที่จำเป็นมาก
+นี่คือ human-in-the-loop ที่จำเป็นมาก — และในโลกที่ AI เป็นนักบัญชี หน้านี้คือ "โต๊ะเซ็นงาน":
+AI ทำงานมากองไว้ เราเปิดมาตรวจแล้วกด approve/reject เหมือนเซ็นรับงานจากนักบัญชี
 
 ---
 
@@ -367,7 +375,7 @@ Document Completeness Report
 Tax Prep Report
 ```
 
-สำหรับส่งให้นักบัญชี ควร export ได้เป็น:
+ควร export ได้เป็น:
 
 ```text
 ledger.xlsx
@@ -378,7 +386,8 @@ project-profit.xlsx
 missing-documents.xlsx
 ```
 
-เป้าหมายคือสิ้นปีศิษย์กด export แล้วส่งให้นักบัญชีได้เลย
+เป้าหมายคือสิ้นปี AI รวบรวมทุกอย่างให้เสร็จ เราแค่ตรวจแล้วใช้ยื่นภาษีได้เลย
+(และยัง export ส่งนักบัญชีมนุษย์ได้เสมอ ถ้าอยากให้ double-check ปีแรก ๆ)
 
 ---
 
@@ -457,7 +466,7 @@ Input VAT / Output VAT placeholder
 รายจ่ายทั้งปี
 ใบหัก ณ ที่จ่าย
 รายการไม่มีหลักฐาน
-รายการที่ต้องถามนักบัญชี
+รายการที่ AI ไม่มั่นใจ ต้องให้เจ้าของตัดสิน
 ```
 
 ---
@@ -563,57 +572,80 @@ Component ต้องโง่ แต่ใช้งานดี
 
 ---
 
-# 7. MCP เริ่ม read-only ตั้งแต่ Phase 1
+# 7. MCP — หัวใจของ AI นักบัญชี
 
-แก้ไขจากแผนเดิมที่จะให้ MCP รอถึง Phase 4: ถ้ารอ Phase 4 กว่าจะเปิด AI query ได้ ต้องผ่าน 3 phase ก่อน ซึ่งเสีย
-โอกาสให้ AI ช่วยตรวจ/สรุป/เตือนตั้งแต่ข้อมูลกองแรก แถมพอถึง Phase 4 จริงอาจต้อง refactor ใหม่อยู่ดี เพราะงั้น
-วาง MCP Gateway แบบ **read-only ตั้งแต่ Phase 1** ไปเลย โดยที่ permission ยังต้องออกแบบระดับสิทธิ์ไว้ตั้งแต่ต้น
+> อัปเดต 10 Jul 2026: จากเดิม MCP เป็นแค่ "ช่องให้ AI ช่วยอ่านข้อมูล" ตอนนี้ MCP คือ **ตัวผลิตภัณฑ์เอง** —
+> ชุดเครื่องมือที่ทำให้ AI ทำงานเป็นนักบัญชีของเราได้เต็มตัว UI เป็นแค่โต๊ะตรวจงาน
+
+## สถานะจริงในโค้ด (ณ 10 Jul 2026)
+
+- `fastapi-mcp` mount อยู่ที่ `http://localhost:8000/mcp` แล้ว (`src/backend/app/main.py`)
+- เปิด **read-only 19 tools** ผ่าน whitelist `MCP_READ_ONLY_OPERATIONS` (operation_id ของ GET routes) —
+  ครอบคลุม transactions, projects, parties, accounts, documents, dashboard summary, tax calculation
+- compound tools (`get_yearly_summary`, `get_project_report`) wire เข้า MCP แล้ว (10 Jul 2026) ผ่าน
+  `GET /api/dashboard/yearly-summary` และ `GET /api/projects/{id}/report`
+- write/delete/confirm/update **ไม่มีตัวไหนหลุดผ่าน MCP** (whitelist ไม่ใช่ blacklist — route ใหม่ปิดโดย default)
+
+## สถาปัตยกรรม
 
 MCP ไม่ควรเข้าถึง database ตรง ๆ
 
 ต้องผ่าน:
 
 ```text
-MCP Client
+MCP Client (Claude ฯลฯ)
 → MCP Gateway
 → Permission Policy
 → Backend Service
 → Database
 ```
 
-สิทธิ์ควรแบ่งเป็น 3 ระดับ ผูกกับ phase ที่เปิดใช้งานจริง:
+## ชุดเครื่องมือของ AI นักบัญชี — จัดตามงานในหัวข้อ 1
+
+| งานนักบัญชี | MCP tools | สถานะ |
+|:--|:--|:--|
+| อ่าน/เข้าใจข้อมูล | `list_transactions`, `get_project`, `dashboard_summary`, ฯลฯ | ✅ เปิดแล้ว |
+| สรุปเชิงลึก | `get_yearly_summary`, `get_project_report` | ✅ เปิดแล้ว (รวมเป็น 19 tools) |
+| จัดหมวด/บันทึก | `create_draft_transaction`, `suggest_category`, `link_project`, `link_party` | Phase 2 (draft) |
+| ตรวจความครบ | `find_missing_documents`, `list_unreviewed`, `flag_duplicates` | Phase 2 |
+| กระทบยอด | `reconcile_statement` (ต้องมี Statement Import ก่อน) | Phase 2 |
+| เตรียมภาษี | `tax_calculation` (✅ เปิดแล้ว), `build_tax_packet`, `list_withholding_certificates` | Phase 3 |
+| เตือน/วางแผน | `check_budget`, `list_recurring`, `forecast_cashflow`, `vat_threshold_status` | Phase 3–4 |
+| แก้สมุดบัญชีจริง | `confirm_transaction`, `edit_transaction`, ฯลฯ | Phase 4 (ผ่าน approval policy เท่านั้น) |
+
+## ระดับสิทธิ์ 3 ขั้น ผูกกับ phase
 
 ```text
-Phase 1 (เปิดทันที): read_finance_summary, read_transactions,
-                     read_documents_metadata, read_projects, read_parties
-Phase 2 (เปิด draft): create_draft_transaction, suggest_category, generate_report
-Phase 4 (เปิดเขียนจริง): export_tax_packet, write_* (ผ่าน approval เท่านั้น)
+Phase 1 (เปิดแล้ว):   read_* ทั้งหมด — AI อ่าน วิเคราะห์ สรุป แนะนำ
+Phase 2 (เปิด draft):  create_draft_*, suggest_* — AI ทำงานมากองที่ Review Queue
+Phase 4 (เขียนจริง):   write_* ผ่าน approval policy + audit log ทุกการกระทำ
 ```
 
-ห้ามให้ AI ภายนอกทำสิ่งนี้จนกว่าจะมี approval flow ครบ:
+ห้ามให้ AI ทำสิ่งนี้จนกว่า approval policy + audit log จะครบ:
 
 ```text
 delete_transaction
 delete_document
-confirm_transaction
+confirm_transaction (ยกเว้นผ่าน auto-approve rule ที่เจ้าของตั้งเอง)
 edit_amount
 submit_tax
 ```
 
-MCP เริ่มจาก **read-only ตั้งแต่ Phase 1**, **draft-only ตั้งแต่ Phase 2**, เขียนจริงรอ Phase 4
-
-ตัวอย่าง flow ที่ปลอดภัย:
+## Flow การทำงานของ AI นักบัญชี
 
 ```text
-AI: พบรายการ 3,000 บาทน่าจะเป็นค่า AI/API
-System: สร้าง draft suggestion
-User: กด approve
-Ledger: ค่อยบันทึกจริง
+AI: อ่าน statement เจอรายการ 3,000 บาท → วิเคราะห์ว่าเป็นค่า AI/API
+AI: สร้าง draft transaction + จัดหมวด + ผูกโปรเจกต์ ผ่าน MCP
+System: เข้าคิวที่ Review Queue
+User: เปิดมาเห็นงานที่ AI ทำเสร็จแล้ว กด approve
+Ledger: บันทึกจริง + audit log
 ```
 
 หลักคือ:
 
-> AI เสนอได้ แต่สมุดบัญชีจริงต้องให้คนอนุมัติ
+> **AI ทำงานทั้งหมดแทนนักบัญชี แต่สมุดบัญชีจริงต้องให้เจ้าของเงินอนุมัติ**
+> Phase 4 ค่อยเพิ่ม auto-approve rules สำหรับรายการเสี่ยงต่ำ (เช่น รายจ่ายซ้ำ ๆ ที่เคย approve แล้ว)
+> เพื่อให้เข้าใกล้ "นักบัญชีอัตโนมัติเต็มตัว" ทีละขั้น โดย audit log ต้องตามดูย้อนหลังได้เสมอ
 
 ---
 
@@ -634,7 +666,7 @@ Transaction
 + Review Status
 ```
 
-แค่นี้ก็พอให้บัญชีจริงทำงานต่อได้แล้ว
+แค่นี้ก็พอให้ AI นักบัญชีทำงานได้เต็มรูปแบบ — ทั้งจัดหมวด กระทบยอด และเตรียมภาษี
 
 ไม่ต้องรีบทำ:
 
@@ -652,23 +684,31 @@ Bank API sync
 
 # 9. Roadmap ใหม่
 
-> อัปเดตหลัง Gap Analysis (10 Jul 2026): เพิ่ม MCP read-only, Statement Import, Budget/Recurring,
-> Notification, Forecast เข้าไปในแต่ละ phase — เหตุผลอยู่ใต้ตารางนี้
+> อัปเดต 10 Jul 2026 (รอบสอง — pivot เป็น AI Personal Accountant): ทุก phase ตั้งแต่ 2 เป็นต้นไป
+> วัดผลด้วยคำถามเดียว — **"AI ทำงานแทนนักบัญชีได้เพิ่มขึ้นเรื่องอะไร"** — ไม่ใช่แค่มีหน้า UI เพิ่ม
 
-| Phase | เนื้อหา |
-|:--|:--|
-| **1 — Accounting Core** | Accounts, Owner Identity, Parties, Transactions, Documents, Review Queue, Projects, **MCP read-only**, **Statement Import เบื้องต้น** |
-| **2 — Accountant Workflow** | Missing document checker, Reconciliation, Report export, Tax prep packet, Withholding tax tracking, **Budget**, **Recurring Transactions**, MCP draft-only |
-| **3 — Tax Center** | PIT estimate, Deductible expense review, VAT watch, Tax document checklist, **Notification** |
-| **4 — MCP เขียนจริง** | **Forecast**, **Write MCP** (AI เสนอ → คน Approve), Permission system เต็มรูปแบบ, Audit log |
+| Phase | เนื้อหา | AI นักบัญชีทำอะไรได้ |
+|:--|:--|:--|
+| **1 — Accounting Core** ✅ เสร็จ 10 Jul 2026 | Accounts, Owner Identity, Parties, Transactions, Documents, Review Queue, Projects, **MCP read-only (เปิดแล้ว 19 tools)**, **Statement Import เบื้องต้น (CSV)** ✅ | อ่าน วิเคราะห์ สรุป ตอบคำถามการเงินทุกมุม |
+| **2 — AI Accountant Workflow** | MCP draft tools (create_draft_transaction, suggest_category, link_project/party), Missing document checker, Reconciliation, Report export, Withholding tax tracking, **Budget**, **Recurring** | จัดหมวด บันทึก draft กระทบยอด ตรวจความครบ — มากองให้เราเซ็น |
+| **3 — Tax Center** | PIT estimate, Deductible expense review, VAT watch, Tax packet, **Notification** | เตรียมภาษีทั้งปี เตือน deadline และความเสี่ยง |
+| **4 — Autonomous Accountant** | **Write MCP + approval policy + auto-approve rules**, Audit log เต็มรูปแบบ, **Forecast** | ทำงานเองครบวงจร เราตรวจเฉพาะรายการเสี่ยงสูง |
 
-## ทำไมถึงเพิ่ม 3 อย่างนี้เข้ามา
+## ทำไมแต่ละอย่างถึงอยู่ใน roadmap
 
-**MCP read-only ตั้งแต่ Phase 1** — ดูหัวข้อ 7 อ่านเพิ่มได้ สรุปคือ AI มีประโยชน์ตั้งแต่ข้อมูลกองแรก ไม่ต้องรอให้ระบบสมบูรณ์
+**MCP read-only ตั้งแต่ Phase 1** — ดูหัวข้อ 7 อ่านเพิ่มได้ สรุปคือ AI มีประโยชน์ตั้งแต่ข้อมูลกองแรก ไม่ต้องรอให้ระบบสมบูรณ์ (เปิดใช้จริงแล้ว 10 Jul 2026)
 
 **Statement Import (CSV/PDF จาก KBANK, SCB, TrueMoney, KPlus)** — ตอนนี้ evidence เข้าระบบได้แค่ slip upload กับ manual entry
 เท่านั้น รายการโอนผ่าน banking app ไม่เข้าระบบเลย ทำให้ reconciliation (หัวข้อ 4 ข้อ 5) ทำไม่ได้จริง เพราะไม่มี
 statement ฝั่งธนาคารมาเทียบ ต้อง parse → map เข้า Account system (ใช้ Account Matching ที่มีอยู่แล้ว) → กันรายการซ้ำ
+ยิ่งสำคัญขึ้นใน scope ใหม่: AI นักบัญชีจะทำงานแทนคนได้ ก็ต่อเมื่อข้อมูลไหลเข้าระบบเองครบทุกช่องทาง ไม่ใช่รอคนถ่ายสลิปทีละใบ
+
+> ✅ **ทำแล้ว (10 Jul 2026, CSV):** `POST /api/statements/import` + `services/statement_service.py` —
+> parser รองรับหัวตารางไทย/อังกฤษ (KBANK/SCB/generic), ปี พ.ศ. → ค.ศ., ข้าม preamble อัตโนมัติ
+> Dedup 3 ชั้น: ไฟล์ซ้ำ (SHA-256) = 409, ref+amount ซ้ำ = ข้าม, ยอด+วันตรงกับรายการเดิม (เช่นสลิปที่เคยลง)
+> = flag `suspected_duplicate` เข้า Review Queue — อันหลังนี้คือ reconciliation เบื้องต้นในตัว
+> ทุกรายการเป็น `pending` + `source=statement` ผูกกับบัญชีที่เลือกและ Document ของไฟล์ statement
+> UI อยู่ที่หน้า Inbox (เลือกบัญชี → อัปโหลด CSV) — PDF statement ยังไม่ทำ รอ Phase 2
 
 **Budget / Recurring Transactions / Notification / Forecast** — วิสัยทัศน์เดิมเป็น reactive ล้วน (user ทำ ระบบบันทึก)
 ไม่มีระบบที่ AI จะทัก/เตือน/วางแผนล่วงหน้า เพิ่มเข้ามาเพื่อให้ระบบ proactive มากขึ้น:
@@ -680,13 +720,15 @@ statement ฝั่งธนาคารมาเทียบ ต้อง parse
 
 # สรุป
 
-ศิษย์ควรเปลี่ยนแกนคิดจาก:
+แกนคิดของโปรเจกต์นี้ผ่านมา 3 ขั้น:
 
-> "AI อ่านสลิปแล้วบันทึกบัญชี"
+> ขั้นแรก: "AI อ่านสลิปแล้วบันทึกบัญชี"
+> ขั้นสอง: "ระบบเตรียมบัญชีที่พร้อมให้นักบัญชีตรวจต่อ"
 
-เป็น:
+ตอนนี้คือขั้นสาม:
 
-> **"ระบบเตรียมบัญชีที่ทุกตัวเลขผูกกับหลักฐาน และพร้อมให้นักบัญชีตรวจต่อ"**
+> **"AI นักบัญชีส่วนตัวผ่าน MCP — ทำงานแทนนักบัญชีทั้งหมด ทุกตัวเลขผูกกับหลักฐาน
+> และเจ้าของเงินเป็นคนเซ็นอนุมัติ"**
 
 เมนูหลักที่ควรล็อกคือ:
 
@@ -707,11 +749,12 @@ MCP / AI Access
 
 และหลักที่ยึดไว้สำหรับ MCP คือ:
 
-> เปิด AI อ่านข้อมูล (read-only) ได้ตั้งแต่ Phase 1 ไม่ต้องรอระบบสมบูรณ์
-> AI ช่วยอ่าน สรุป แนะนำ และสร้าง draft ได้ตั้งแต่ Phase 2
-> ห้ามให้ AI แก้สมุดบัญชีจริงโดยไม่มี approval จนกว่าจะถึง Phase 4
+> AI อ่านข้อมูลได้ทุกอย่าง (read-only เปิดแล้ว 19 tools)
+> AI ทำงานบัญชีทั้งหมด — จัดหมวด บันทึก draft กระทบยอด เตรียมภาษี — ตั้งแต่ Phase 2
+> สมุดบัญชีจริงต้องผ่าน approval เสมอ จนกว่า Phase 4 จะมี auto-approve rules + audit log ครบ
 
-อันนี้คือทิศที่ถูกแล้ว ศิษย์ไม่ได้กำลังทำแอปบัญชีเล็ก ๆ แล้ว แต่กำลังทำ **Business Accounting Brain** ของตัวเองครับ.
+นี่ไม่ใช่แอปบัญชีเล็ก ๆ และไม่ใช่แค่ workspace อีกต่อไป — นี่คือ **AI Personal Accountant:
+Business Accounting Brain ที่ทำงานแทนนักบัญชีของเราเอง** ครับ.
 
 [1]: https://www.rd.go.th/english/6045.html "Personal Income Tax | The Revenue Department (English Site)"
 [2]: https://www.rd.go.th/english/6043.html "Value Added Tax | The Revenue Department (English Site)"

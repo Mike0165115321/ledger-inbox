@@ -17,6 +17,7 @@ import {
 import { api, Document as DocType, QueuedUploadResponse } from "@/lib/api";
 import FileUpload from "@/components/FileUpload";
 import QueueStatusBar from "@/components/QueueStatusBar";
+import StatementImport from "@/components/StatementImport";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -200,6 +201,9 @@ export default function InboxPage() {
         </h2>
         <FileUpload onUpload={handleUpload} />
       </Card>
+
+      {/* Statement Import */}
+      <StatementImport onImported={fetchDocs} />
 
       {/* Toast Notification */}
       {msg && (

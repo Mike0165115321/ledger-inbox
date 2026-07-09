@@ -190,6 +190,22 @@ export const api = {
     return res.json() as Promise<{ queued: number; items: QueuedUploadResponse[] }>;
   },
 
+  // ── Statement Import ──
+  importStatement: async (file: File, accountId: string) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("account_id", accountId);
+    const res = await fetch(`${API_BASE}/api/statements/import`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new ApiError(body.detail || "นำเข้าไม่สำเร็จ", res.status);
+    }
+    return res.json() as Promise<StatementImportResult>;
+  },
+
   // ── Review ──
   getReviewQueue: () =>
     request<Transaction[]>(
@@ -471,6 +487,17 @@ export interface QueueStatus {
   // Misc
   last_processed_at: string | null;
   last_error: string | null;
+}
+
+export interface StatementImportResult {
+  document_id: string;
+  account: string;
+  total_rows: number;
+  created: number;
+  skipped_duplicates: number;
+  suspected_duplicates: number;
+  parse_errors: string[];
+  message: string;
 }
 
 export interface QueuedUploadResponse {

@@ -2,8 +2,9 @@
 Custom MCP Compound Tools for Ledger Inbox
 Combine multiple data sources into rich AI-friendly responses.
 
-These are OPTIONAL — fastapi-mcp auto-exposes all REST endpoints as tools.
-These compound tools provide richer multi-step queries.
+Exposed via REST → MCP whitelist:
+- get_yearly_summary  → GET /api/dashboard/yearly-summary (api/dashboard.py)
+- get_project_report  → GET /api/projects/{id}/report     (api/projects.py)
 """
 
 from datetime import datetime

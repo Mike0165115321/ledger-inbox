@@ -17,6 +17,7 @@ from .api import (
     accounts,
     parties,
     owner_profile,
+    statements,
 )
 from .services.upload_queue import upload_queue
 
@@ -62,6 +63,7 @@ app.include_router(dashboard.export_router)
 app.include_router(accounts.router)
 app.include_router(parties.router)
 app.include_router(owner_profile.router)
+app.include_router(statements.router)
 
 # ── MCP Integration ──────────────────────────────────────────────
 # Phase 1 policy (docs/ACCOUNTING_WORKSPACE_VISION.md #7): MCP is read-only until
@@ -71,6 +73,7 @@ MCP_READ_ONLY_OPERATIONS = [
     "list_accounts", "get_account",
     "list_categories",
     "dashboard_summary", "tax_summary", "tax_calculation", "dashboard_timeline",
+    "get_yearly_summary", "get_project_report",
     "list_documents",
     "model_health", "queue_health",
     "get_owner_profile",
